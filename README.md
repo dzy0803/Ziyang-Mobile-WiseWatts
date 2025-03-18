@@ -1,7 +1,15 @@
-# REPLACE WITH YOUR APP NAME
+=======
+<!-- <p align="center"><img align="center" width="300" src="./assets/Logo/WiseWatts_logo.jpeg"></p> -->
+<p align="center">
+  <img src="./Figures/LOGO.png" alt="Home Appliance Energy Monitoring" width="400">
+</p>
 
-This is the Final assessment template for CASA0014 - Please use this template and edit the relevant sections to personalise.
-This section has a short introduction to what the application is
+# WiseWatts: 
+
+
+**WiseWatts** is a smart energy monitoring app designed to help users track and optimize household appliance energy consumption. The app provides real-time data visualization, remote appliance control, and energy-saving recommendations. It supports multiple data interaction methods, including API integration, simulated data, and manual input.
+
+---
 
 ## Use this README File 
 
@@ -19,6 +27,6 @@ Look at some other Flutter Apps online and see how they use there README File.  
 Include a section that gives intructions on how to install the app or run it in Flutter.  What versions of the plugins are you assuming?  Maybe define a licence
 
 ##  Contact Details
-fff
+
 
 Having Contact Details is also good as it shows people how to get in contact with you if they'd like to contribute to the app. 
