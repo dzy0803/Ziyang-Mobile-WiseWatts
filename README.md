@@ -19,5 +19,6 @@ Look at some other Flutter Apps online and see how they use there README File.  
 Include a section that gives intructions on how to install the app or run it in Flutter.  What versions of the plugins are you assuming?  Maybe define a licence
 
 ##  Contact Details
+fff
 
 Having Contact Details is also good as it shows people how to get in contact with you if they'd like to contribute to the app. 
