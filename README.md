@@ -1,13 +1,15 @@
-=======
+=================================================================================================================================
 <!-- <p align="center"><img align="center" width="300" src="./assets/Logo/WiseWatts_logo.jpeg"></p> -->
 <p align="center">
-  <img src="./Figures/LOGO.png" alt="Home Appliance Energy Monitoring" width="400">
+  <img src="./Figures/LOGO.png" alt="Home Appliance Energy Monitoring" width="500">
 </p>
+
+=================================================================================================================================
 
 # WiseWatts: 
 
 
-**WiseWatts** is a smart energy monitoring app designed to help users track and optimize household appliance energy consumption. The app provides real-time data visualization, remote appliance control, and energy-saving recommendations. It supports multiple data interaction methods, including API integration, simulated data, and manual input.
+**WiseWatts** is a super smart energy monitoring app designed to help users track and optimize household appliance energy consumption. The app provides real-time data visualization, remote appliance control, and energy-saving recommendations. It supports multiple data interaction methods, including API integration, simulated data, and manual input.
 
 ---
 
