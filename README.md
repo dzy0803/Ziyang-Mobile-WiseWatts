@@ -9,7 +9,7 @@
 # WiseWatts: 
 
 
-**WiseWatts** is a super smart energy monitoring app designed to help users track and optimize household appliance energy consumption. The app provides real-time data visualization, remote appliance control, and energy-saving recommendations. It supports multiple data interaction methods, including API integration, simulated data, and manual input.
+**WiseWatts** is a smart energy monitoring app designed to help users track and optimize household appliance energy consumption. The app provides real-time data visualization, remote appliance control, and energy-saving recommendations. It supports multiple data interaction methods, including API integration, simulated data, and manual input.
 
 ---
 
