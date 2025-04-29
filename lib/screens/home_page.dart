@@ -7,7 +7,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  double accountBalance = 0.0; // initial balance with 0
+  double accountBalance = 0.0;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   void _showNavigateDialog() {
@@ -37,20 +37,20 @@ class _HomePageState extends State<HomePage> {
         actions: [
           TextButton(
             onPressed: () {
-              Navigator.of(context).pop(); // No
+              Navigator.of(context).pop();
             },
             child: Text('No', style: TextStyle(fontSize: 18)),
           ),
           TextButton(
             onPressed: () async {
-              Navigator.of(context).pop(); // Close this dialog
+              Navigator.of(context).pop();
               final result = await Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => TopUpPage()),
               );
               if (result != null && result is double) {
                 setState(() {
-                  accountBalance += result; // update the balance
+                  accountBalance += result;
                 });
               }
             },
@@ -59,6 +59,15 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
     );
+  }
+
+  void _logout() {
+    setState(() {
+      accountBalance = 0.0; // clear the balance (for easy re-testing purpose)
+    });
+
+    // exit the current page and jump into LoginPage
+    Navigator.pushReplacementNamed(context, '/login');
   }
 
   @override
@@ -111,7 +120,10 @@ class _HomePageState extends State<HomePage> {
             ListTile(
               leading: Icon(Icons.logout),
               title: Text('Logout'),
-              onTap: () {},
+              onTap: () {
+                Navigator.pop(context); // close the Drawer first
+                _logout();              // then jump into the Login page
+              },
             ),
           ],
         ),

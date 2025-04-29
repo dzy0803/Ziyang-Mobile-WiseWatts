@@ -12,6 +12,7 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
   bool _isIndeterminate = true;
   bool _showCheck = false;
   double _checkOpacity = 0.0;
+  bool _showLoginButton = false; // Login/Signup button 
 
   late AnimationController _haloController;
   late Animation<double> _haloSizeAnimation;
@@ -67,9 +68,11 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
       _haloController.forward();
     });
 
+    
     Future.delayed(Duration(seconds: 2), () {
-      Navigator.pushReplacementNamed(context, '/main');
-
+      setState(() {
+        _showLoginButton = true;
+      });
     });
   }
 
@@ -77,6 +80,10 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
   void dispose() {
     _haloController.dispose();
     super.dispose();
+  }
+
+  void _navigateToLogin() {
+    Navigator.pushReplacementNamed(context, '/login'); // jumo into LoginPage
   }
 
   @override
@@ -152,7 +159,7 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
                           opacity: _checkOpacity,
                           duration: Duration(seconds: 2),
                           child: Lottie.asset(
-                            'assets/lottie/tickorange.json',
+                            'assets/lottie/light.json',
                             repeat: false,
                             fit: BoxFit.contain,
                           ),
@@ -161,6 +168,22 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
                     )
                   : SizedBox.shrink(),
             ),
+            SizedBox(height: 30),
+            if (_showLoginButton)
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orangeAccent,
+                  padding: EdgeInsets.symmetric(horizontal: 40, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: _navigateToLogin,
+                child: Text(
+                  'Login / Sign Up',
+                  style: TextStyle(fontSize: 20, color: Colors.white),
+                ),
+              ),
           ],
         ),
       ),

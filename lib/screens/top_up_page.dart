@@ -26,7 +26,7 @@ class _TopUpPageState extends State<TopUpPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
 
-              // ✨ 1. Card Information first
+              // 1. Card Information first
               Text(
                 'Card Information:',
                 style: TextStyle(
@@ -40,7 +40,7 @@ class _TopUpPageState extends State<TopUpPage> {
                 controller: _cardController,
                 keyboardType: TextInputType.text,
                 decoration: InputDecoration(
-                  labelText: 'Enter any card info...',
+                  labelText: 'Enter anything you like...',
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
