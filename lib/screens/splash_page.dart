@@ -10,9 +10,7 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
   double _opacity = 0.0;
   double _progress = 0.0;
   bool _isIndeterminate = true;
-  double _checkOpacity = 0.0;
   bool _showLoginButton = false;
-  double _loginOpacity = 0.0;
 
   late AnimationController _haloController;
   late Animation<double> _haloSizeAnimation;
@@ -22,6 +20,7 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
   void initState() {
     super.initState();
 
+    // Halo animation controller
     _haloController = AnimationController(
       vsync: this,
       duration: Duration(seconds: 1),
@@ -35,14 +34,15 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
       CurvedAnimation(parent: _haloController, curve: Curves.easeOut),
     );
 
+    // Start logo fade-in
     Future.delayed(Duration(milliseconds: 300), () {
       setState(() {
         _opacity = 1.0;
-        _checkOpacity = 1.0;
       });
       _haloController.forward();
     });
 
+    // Show progress bar for 2 seconds
     Future.delayed(Duration(seconds: 2), () {
       setState(() {
         _isIndeterminate = false;
@@ -52,6 +52,7 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
   }
 
   void _simulateLoading() async {
+    // Simulate progress bar fill
     for (int i = 0; i <= 100; i++) {
       await Future.delayed(Duration(milliseconds: 5));
       setState(() {
@@ -59,11 +60,9 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
       });
     }
 
-    Future.delayed(Duration(seconds: 2), () {
-      setState(() {
-        _showLoginButton = true;
-        _loginOpacity = 1.0;
-      });
+    // Show login button immediately after loading completes
+    setState(() {
+      _showLoginButton = true;
     });
   }
 
@@ -88,10 +87,10 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            // App logo
             AnimatedOpacity(
               opacity: _opacity,
               duration: Duration(seconds: 2),
-              curve: Curves.easeInOut,
               child: Image.asset(
                 'assets/images/logo.png',
                 width: logoSize,
@@ -99,7 +98,10 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
                 fit: BoxFit.contain,
               ),
             ),
+
             SizedBox(height: 40),
+
+            // Progress bar
             AnimatedOpacity(
               opacity: _opacity,
               duration: Duration(seconds: 2),
@@ -125,7 +127,10 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
                 ),
               ),
             ),
+
             SizedBox(height: 60),
+
+            // Lottie + Halo animation
             Container(
               width: 120,
               height: 120,
@@ -145,39 +150,33 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
                       );
                     },
                   ),
-                  AnimatedOpacity(
-                    opacity: _checkOpacity,
-                    duration: Duration(seconds: 2),
-                    child: Lottie.asset(
-                      'assets/lottie/light.json',
-                      repeat: false,
-                      fit: BoxFit.contain,
-                    ),
+                  Lottie.asset(
+                    'assets/lottie/light.json',
+                    repeat: false,
+                    fit: BoxFit.contain,
                   ),
                 ],
               ),
             ),
+
             SizedBox(height: 30),
-            AnimatedOpacity(
-              opacity: _loginOpacity,
-              duration: Duration(seconds: 2),
-              child: _showLoginButton
-                  ? ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.orangeAccent,
-                        padding: EdgeInsets.symmetric(horizontal: 40, vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      onPressed: _navigateToLogin,
-                      child: Text(
-                        'Login / Sign Up',
-                        style: TextStyle(fontSize: 20, color: Colors.white),
-                      ),
-                    )
-                  : SizedBox.shrink(),
-            ),
+
+            // Login Button (no fade-in)
+            if (_showLoginButton)
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orangeAccent,
+                  padding: EdgeInsets.symmetric(horizontal: 40, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: _navigateToLogin,
+                child: Text(
+                  'Login / Sign Up',
+                  style: TextStyle(fontSize: 20, color: Colors.white),
+                ),
+              ),
           ],
         ),
       ),
