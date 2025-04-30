@@ -10,9 +10,9 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
   double _opacity = 0.0;
   double _progress = 0.0;
   bool _isIndeterminate = true;
-  bool _showCheck = false;
   double _checkOpacity = 0.0;
-  bool _showLoginButton = false; // Login/Signup button 
+  bool _showLoginButton = false;
+  double _loginOpacity = 0.0;
 
   late AnimationController _haloController;
   late Animation<double> _haloSizeAnimation;
@@ -38,7 +38,9 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
     Future.delayed(Duration(milliseconds: 300), () {
       setState(() {
         _opacity = 1.0;
+        _checkOpacity = 1.0;
       });
+      _haloController.forward();
     });
 
     Future.delayed(Duration(seconds: 2), () {
@@ -57,21 +59,10 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
       });
     }
 
-    setState(() {
-      _showCheck = true;
-    });
-
-    Future.delayed(Duration(milliseconds: 200), () {
-      setState(() {
-        _checkOpacity = 1.0;
-      });
-      _haloController.forward();
-    });
-
-    
     Future.delayed(Duration(seconds: 2), () {
       setState(() {
         _showLoginButton = true;
+        _loginOpacity = 1.0;
       });
     });
   }
@@ -83,7 +74,7 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
   }
 
   void _navigateToLogin() {
-    Navigator.pushReplacementNamed(context, '/login'); // jumo into LoginPage
+    Navigator.pushReplacementNamed(context, '/login');
   }
 
   @override
@@ -138,52 +129,55 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
             Container(
               width: 120,
               height: 120,
-              child: _showCheck
-                  ? Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        AnimatedBuilder(
-                          animation: _haloController,
-                          builder: (context, child) {
-                            return Container(
-                              width: _haloSizeAnimation.value,
-                              height: _haloSizeAnimation.value,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: Colors.orangeAccent.withOpacity(_haloOpacityAnimation.value),
-                              ),
-                            );
-                          },
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  AnimatedBuilder(
+                    animation: _haloController,
+                    builder: (context, child) {
+                      return Container(
+                        width: _haloSizeAnimation.value,
+                        height: _haloSizeAnimation.value,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.orangeAccent.withOpacity(_haloOpacityAnimation.value),
                         ),
-                        AnimatedOpacity(
-                          opacity: _checkOpacity,
-                          duration: Duration(seconds: 2),
-                          child: Lottie.asset(
-                            'assets/lottie/light.json',
-                            repeat: false,
-                            fit: BoxFit.contain,
-                          ),
+                      );
+                    },
+                  ),
+                  AnimatedOpacity(
+                    opacity: _checkOpacity,
+                    duration: Duration(seconds: 2),
+                    child: Lottie.asset(
+                      'assets/lottie/light.json',
+                      repeat: false,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: 30),
+            AnimatedOpacity(
+              opacity: _loginOpacity,
+              duration: Duration(seconds: 2),
+              child: _showLoginButton
+                  ? ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orangeAccent,
+                        padding: EdgeInsets.symmetric(horizontal: 40, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                      ],
+                      ),
+                      onPressed: _navigateToLogin,
+                      child: Text(
+                        'Login / Sign Up',
+                        style: TextStyle(fontSize: 20, color: Colors.white),
+                      ),
                     )
                   : SizedBox.shrink(),
             ),
-            SizedBox(height: 30),
-            if (_showLoginButton)
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orangeAccent,
-                  padding: EdgeInsets.symmetric(horizontal: 40, vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                onPressed: _navigateToLogin,
-                child: Text(
-                  'Login / Sign Up',
-                  style: TextStyle(fontSize: 20, color: Colors.white),
-                ),
-              ),
           ],
         ),
       ),
