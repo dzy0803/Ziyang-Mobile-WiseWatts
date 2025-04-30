@@ -42,6 +42,11 @@ class _MainPageState extends State<MainPage> {
     final List<Widget> _pages = [
       HomePage(
         devices: devices,
+        onViewDevices: () {
+          setState(() {
+            _currentIndex = 1;
+          });
+        },
       ),
       DevicesPage(
         devices: devices,

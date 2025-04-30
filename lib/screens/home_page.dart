@@ -4,8 +4,9 @@ import 'top_up_page.dart';
 
 class HomePage extends StatefulWidget {
   final List<Map<String, dynamic>> devices;
+  final VoidCallback onViewDevices;
 
-  HomePage({Key? key, required this.devices}) : super(key: key);
+  HomePage({Key? key, required this.devices, required this.onViewDevices}) : super(key: key);
 
   @override
   _HomePageState createState() => _HomePageState();
@@ -134,11 +135,7 @@ class _HomePageState extends State<HomePage> {
                     ),
                     SizedBox(height: 20),
                     ElevatedButton(
-                      onPressed: () {
-                        final navBar = Navigator.of(context);
-                        navBar.popUntil((route) => route.isFirst); // pop to MainPage
-                        // The tab index change should be handled in MainPage
-                      },
+                      onPressed: widget.onViewDevices,
                       child: Text('View Devices'),
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.orangeAccent),
                     )
