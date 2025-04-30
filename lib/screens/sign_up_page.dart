@@ -10,7 +10,7 @@ class SignUpPage extends StatelessWidget {
       ),
       body: Center(
         child: Text(
-          'Sign Up Page (Coming Soon)',
+          'Coming Soon! (use Test Account for now)',
           style: TextStyle(fontSize: 22, color: Colors.black54),
         ),
       ),
