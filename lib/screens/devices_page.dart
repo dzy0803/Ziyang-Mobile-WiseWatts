@@ -37,58 +37,33 @@ final Map<String, IconData> deviceIcons = {
 };
 
 class DevicesPage extends StatefulWidget {
+  final List<Map<String, dynamic>> devices;
+  final void Function(Map<String, dynamic>) onAddDevice;
+  final void Function(String) onRemoveDevice;
+  final void Function(String) onToggleDeviceStatus;
+
+  DevicesPage({
+    required this.devices,
+    required this.onAddDevice,
+    required this.onRemoveDevice,
+    required this.onToggleDeviceStatus,
+  });
+
   @override
   _DevicesPageState createState() => _DevicesPageState();
 }
 
 class _DevicesPageState extends State<DevicesPage> {
-  final List<Map<String, dynamic>> devices = [];
-  final Set<String> addedDeviceNames = {};
-  final List<String> allDeviceNames = deviceIcons.keys.toList();
+  Set<String> addedNames = {};
+  List<String> allDeviceNames = List<String>.from(deviceIcons.keys);
 
-  void _addDevice(String name) {
-    setState(() {
-      addedDeviceNames.add(name);
-      devices.add({
-        'name': name,
-        'id': uuid.v4(),
-        'isOnline': false,
-      });
-    });
-    Navigator.of(context).maybePop();
+  @override
+  void initState() {
+    super.initState();
+    addedNames = widget.devices.map((d) => d['name'] as String).toSet();
   }
 
-  void _removeDevice(String id) {
-    setState(() {
-      final removed = devices.firstWhere((d) => d['id'] == id);
-      addedDeviceNames.remove(removed['name']);
-      devices.removeWhere((d) => d['id'] == id);
-    });
-  }
-
-  void _toggleDeviceStatus(String id) {
-    setState(() {
-      final index = devices.indexWhere((d) => d['id'] == id);
-      if (index != -1) {
-        devices[index]['isOnline'] = !(devices[index]['isOnline'] as bool);
-      }
-    });
-  }
-
-  void _navigateToDetail(Map<String, dynamic> device) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => DeviceDetailPage(
-          device: device,
-          onDelete: () => _removeDevice(device['id']),
-          onToggleStatus: () => _toggleDeviceStatus(device['id']),
-        ),
-      ),
-    );
-  }
-
-  void _promptAddCustomDevice() {
+  void _promptAddCustomDevice(BuildContext context) {
     String customName = '';
     showDialog(
       context: context,
@@ -98,15 +73,10 @@ class _DevicesPageState extends State<DevicesPage> {
           content: TextField(
             autofocus: true,
             decoration: InputDecoration(hintText: 'Enter device name'),
-            onChanged: (value) {
-              customName = value.trim();
-            },
+            onChanged: (value) => customName = value.trim(),
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('Cancel'),
-            ),
+            TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel')),
             ElevatedButton(
               onPressed: () {
                 if (customName.isEmpty) return;
@@ -116,20 +86,31 @@ class _DevicesPageState extends State<DevicesPage> {
                     builder: (_) => AlertDialog(
                       title: Text('Duplicate Device'),
                       content: Text('Device "$customName" already exists.'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: Text('OK'),
-                        )
-                      ],
+                      actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text('OK'))],
                     ),
                   );
                   return;
                 }
                 setState(() {
+                  deviceIcons[customName] = Icons.device_unknown;
                   allDeviceNames.add(customName);
+                  final newDevice = {
+                    'name': customName,
+                    'id': uuid.v4(),
+                    'isOnline': false,
+                  };
+                  widget.onAddDevice(newDevice);
+                  addedNames.add(customName);
                 });
                 Navigator.pop(context);
+                showDialog(
+                  context: context,
+                  builder: (_) => AlertDialog(
+                    title: Text('Success'),
+                    content: Text('"$customName" added successfully!'),
+                    actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text('OK'))],
+                  ),
+                );
               },
               child: Text('Add'),
             ),
@@ -139,63 +120,111 @@ class _DevicesPageState extends State<DevicesPage> {
     );
   }
 
-  void _openDeviceDrawer() {
+  void _confirmClearAll() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Clear All Devices'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Are you sure you want to remove all devices?'),
+            SizedBox(height: 12),
+            Text('This action cannot be undone.', style: TextStyle(fontSize: 13, color: Colors.grey[700])),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              for (var device in List.from(widget.devices)) {
+                widget.onRemoveDevice(device['id']);
+              }
+              setState(() {
+                addedNames.clear();
+              });
+              Navigator.pop(context);
+            },
+            child: Text('Confirm'),
+          )
+        ],
+      ),
+    );
+  }
+
+  void _openDeviceDrawer(BuildContext context) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       builder: (_) {
-        return DraggableScrollableSheet(
-          expand: false,
-          builder: (_, controller) {
-            return Column(
-              children: [
-                Expanded(
-                  child: ListView.builder(
-                    controller: controller,
-                    itemCount: allDeviceNames.length + 1,
-                    itemBuilder: (_, index) {
-                      if (index < allDeviceNames.length) {
-                        final name = allDeviceNames[index];
-                        final alreadyAdded = addedDeviceNames.contains(name);
-                        return ListTile(
-                          leading: Icon(deviceIcons[name] ?? Icons.devices_other),
-                          title: Text(name),
-                          trailing: ElevatedButton(
-                            onPressed: alreadyAdded ? null : () => _addDevice(name),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: alreadyAdded ? Colors.grey : Colors.orangeAccent,
-                            ),
-                            child: Text(alreadyAdded ? 'Added' : 'Add'),
-                          ),
-                        );
-                      } else {
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Divider(),
-                              Text(
-                                'Not found your device?',
-                                style: TextStyle(fontSize: 16, color: Colors.grey[700]),
-                              ),
-                              SizedBox(height: 12),
-                              ElevatedButton.icon(
-                                onPressed: _promptAddCustomDevice,
-                                icon: Icon(Icons.add),
-                                label: Text('Add Custom Device'),
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return DraggableScrollableSheet(
+              expand: false,
+              builder: (_, controller) {
+                return Column(
+                  children: [
+                    Expanded(
+                      child: ListView.builder(
+                        controller: controller,
+                        itemCount: allDeviceNames.length + 1,
+                        itemBuilder: (_, index) {
+                          if (index < allDeviceNames.length) {
+                            final name = allDeviceNames[index];
+                            final alreadyAdded = addedNames.contains(name);
+                            return ListTile(
+                              leading: Icon(deviceIcons[name] ?? Icons.devices_other),
+                              title: Text(name),
+                              trailing: ElevatedButton(
+                                onPressed: alreadyAdded
+                                    ? null
+                                    : () {
+                                        final newDevice = {
+                                          'name': name,
+                                          'id': uuid.v4(),
+                                          'isOnline': false,
+                                        };
+                                        widget.onAddDevice(newDevice);
+                                        setModalState(() {
+                                          addedNames.add(name);
+                                        });
+                                        setState(() {
+                                          addedNames.add(name);
+                                        });
+                                      },
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.orangeAccent,
+                                  backgroundColor: alreadyAdded ? Colors.grey : Colors.orangeAccent,
                                 ),
+                                child: Text(alreadyAdded ? 'Added' : 'Add'),
                               ),
-                            ],
-                          ),
-                        );
-                      }
-                    },
-                  ),
-                ),
-              ],
+                            );
+                          } else {
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24),
+                              child: Column(
+                                children: [
+                                  Divider(),
+                                  Text('Not found your device?', style: TextStyle(fontSize: 16, color: Colors.grey[700])),
+                                  SizedBox(height: 12),
+                                  ElevatedButton.icon(
+                                    onPressed: () => _promptAddCustomDevice(context),
+                                    icon: Icon(Icons.add),
+                                    label: Text('Add Custom Device'),
+                                    style: ElevatedButton.styleFrom(backgroundColor: Colors.orangeAccent),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                    ),
+                  ],
+                );
+              },
             );
           },
         );
@@ -209,8 +238,15 @@ class _DevicesPageState extends State<DevicesPage> {
       appBar: AppBar(
         title: Text('Devices'),
         backgroundColor: Colors.orangeAccent,
+        actions: [
+          IconButton(
+            icon: Icon(Icons.delete_forever),
+            tooltip: 'Clear All Devices',
+            onPressed: _confirmClearAll,
+          ),
+        ],
       ),
-      body: devices.isEmpty
+      body: widget.devices.isEmpty
           ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -222,18 +258,26 @@ class _DevicesPageState extends State<DevicesPage> {
               ),
             )
           : ListView.builder(
-              itemCount: devices.length,
+              itemCount: widget.devices.length,
               itemBuilder: (_, index) {
-                final device = devices[index];
+                final device = widget.devices[index];
                 return Card(
                   margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   child: ListTile(
-                    onTap: () => _navigateToDetail(device),
-                    leading: Icon(
-                      deviceIcons[device['name']] ?? Icons.devices_other,
-                      color: Colors.blueAccent,
-                    ),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => DeviceDetailPage(
+                            device: device,
+                            onDelete: () => widget.onRemoveDevice(device['id']),
+                            onToggleStatus: () => widget.onToggleDeviceStatus(device['id']),
+                          ),
+                        ),
+                      );
+                    },
+                    leading: Icon(deviceIcons[device['name']] ?? Icons.devices_other, color: Colors.blueAccent),
                     title: Text(device['name']),
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -261,7 +305,7 @@ class _DevicesPageState extends State<DevicesPage> {
         mainAxisSize: MainAxisSize.min,
         children: [
           FloatingActionButton(
-            onPressed: _openDeviceDrawer,
+            onPressed: () => _openDeviceDrawer(context),
             backgroundColor: Colors.orangeAccent,
             child: Icon(Icons.add),
           ),
@@ -273,6 +317,7 @@ class _DevicesPageState extends State<DevicesPage> {
     );
   }
 }
+
 
 class DeviceDetailPage extends StatefulWidget {
   final Map<String, dynamic> device;
@@ -303,6 +348,33 @@ class _DeviceDetailPageState extends State<DeviceDetailPage> {
     setState(() {
       isOnline = !isOnline;
     });
+  }
+
+  void _confirmDelete() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Confirm Deletion'),
+        content: Text('Are you sure you want to remove this device?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              widget.onDelete();
+              Navigator.pop(context); // Close dialog
+              Navigator.pop(context); // Exit page
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Device removed successfully')),
+              );
+            },
+            child: Text('Delete'),
+          )
+        ],
+      ),
+    );
   }
 
   @override
@@ -349,10 +421,7 @@ class _DeviceDetailPageState extends State<DeviceDetailPage> {
             ),
             SizedBox(height: 20),
             ElevatedButton.icon(
-              onPressed: () {
-                widget.onDelete();
-                Navigator.pop(context);
-              },
+              onPressed: _confirmDelete,
               icon: Icon(Icons.delete),
               label: Text('Remove Device'),
               style: ElevatedButton.styleFrom(backgroundColor: Colors.grey),

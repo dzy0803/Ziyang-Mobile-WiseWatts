@@ -1,3 +1,4 @@
+// main_page.dart
 import 'package:flutter/material.dart';
 import 'home_page.dart';
 import 'devices_page.dart';
@@ -12,15 +13,46 @@ class MainPage extends StatefulWidget {
 class _MainPageState extends State<MainPage> {
   int _currentIndex = 0;
 
-  final List<Widget> _pages = [
-    HomePage(),         // Home content page
-    DevicesPage(),      // Devices management page
-    EnergyHubPage(),    // Energy hub analytics page
-    BillsPage(),        // Bills overview page
-  ];
+  // Shared device list
+  List<Map<String, dynamic>> devices = [];
+
+  void _addDevice(Map<String, dynamic> device) {
+    setState(() {
+      devices.add(device);
+    });
+  }
+
+  void _removeDevice(String id) {
+    setState(() {
+      devices.removeWhere((d) => d['id'] == id);
+    });
+  }
+
+  void _toggleDeviceStatus(String id) {
+    setState(() {
+      final index = devices.indexWhere((d) => d['id'] == id);
+      if (index != -1) {
+        devices[index]['isOnline'] = !(devices[index]['isOnline'] as bool);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    final List<Widget> _pages = [
+      HomePage(
+        devices: devices,
+      ),
+      DevicesPage(
+        devices: devices,
+        onAddDevice: _addDevice,
+        onRemoveDevice: _removeDevice,
+        onToggleDeviceStatus: _toggleDeviceStatus,
+      ),
+      EnergyHubPage(),
+      BillsPage(),
+    ];
+
     return Scaffold(
       body: IndexedStack(
         index: _currentIndex,
@@ -30,7 +62,7 @@ class _MainPageState extends State<MainPage> {
         currentIndex: _currentIndex,
         selectedItemColor: Colors.orangeAccent,
         unselectedItemColor: Colors.grey,
-        type: BottomNavigationBarType.fixed, // Important when 4 items
+        type: BottomNavigationBarType.fixed,
         onTap: (index) {
           setState(() {
             _currentIndex = index;
