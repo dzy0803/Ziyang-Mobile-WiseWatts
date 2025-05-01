@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'sensor_data_model.dart';
 
 class EnvironmentPage extends StatefulWidget {
   @override
@@ -48,6 +49,7 @@ class _EnvironmentPageState extends State<EnvironmentPage> {
 
   void _startSimulation() {
     timer?.cancel();
+    SensorDataModel().startAveraging();
     timer = Timer.periodic(Duration(seconds: 1), (_) {
       setState(() {
         light = 100 + random.nextDouble() * 900;
@@ -59,6 +61,13 @@ class _EnvironmentPageState extends State<EnvironmentPage> {
         _updateHistory(temperatureHistory, temperature);
         _updateHistory(humidityHistory, humidity);
         _updateHistory(pressureHistory, pressure);
+
+        SensorDataModel().updateSensors(
+          light: light,
+          temperature: temperature,
+          humidity: humidity,
+          pressure: pressure,
+        );
       });
     });
   }
@@ -129,7 +138,6 @@ class _EnvironmentPageState extends State<EnvironmentPage> {
               ],
             ),
             SizedBox(height: 24),
-
             _buildSensorCard(Icons.wb_sunny, 'Ambient Light', light, 'lux', Colors.yellow.shade600),
             SizedBox(height: 16),
             _buildSensorCard(Icons.thermostat, 'Temperature', temperature, '°C', Colors.redAccent),
@@ -138,8 +146,6 @@ class _EnvironmentPageState extends State<EnvironmentPage> {
             SizedBox(height: 16),
             _buildSensorCard(Icons.speed, 'Air Pressure', pressure, 'hPa', Colors.deepPurpleAccent),
             SizedBox(height: 30),
-
-            // 美化后的标题 + 图例
             Container(
               padding: EdgeInsets.symmetric(vertical: 10, horizontal: 12),
               decoration: BoxDecoration(
@@ -171,7 +177,6 @@ class _EnvironmentPageState extends State<EnvironmentPage> {
               ],
             ),
             SizedBox(height: 16),
-
             SizedBox(
               height: 220,
               child: LineChart(
@@ -260,6 +265,7 @@ class _EnvironmentPageState extends State<EnvironmentPage> {
     );
   }
 }
+
 
 class EditAddressPage extends StatefulWidget {
   final String addressLine1;
