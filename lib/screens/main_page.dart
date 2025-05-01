@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'home_page.dart';
 import 'devices_page.dart';
 import 'energy_hub_page.dart';
-import 'bills_page.dart';
+import 'environment_page.dart';
 
 class MainPage extends StatefulWidget {
   @override
@@ -44,18 +44,18 @@ class _MainPageState extends State<MainPage> {
         devices: devices,
         onViewDevices: () {
           setState(() {
-            _currentIndex = 1;
+            _currentIndex = 2; // Devices now at index 2
           });
         },
       ),
+      EnvironmentPage(), // Added second tab
       DevicesPage(
         devices: devices,
         onAddDevice: _addDevice,
         onRemoveDevice: _removeDevice,
         onToggleDeviceStatus: _toggleDeviceStatus,
       ),
-      EnergyHubPage(),
-      BillsPage(),
+      EnergyHubPage(), // Renamed and moved to index 3
     ];
 
     return Scaffold(
@@ -75,9 +75,9 @@ class _MainPageState extends State<MainPage> {
         },
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.sensors), label: 'Environment'), // New tab
           BottomNavigationBarItem(icon: Icon(Icons.devices), label: 'Devices'),
           BottomNavigationBarItem(icon: Icon(Icons.bolt), label: 'Energy Hub'),
-          BottomNavigationBarItem(icon: Icon(Icons.receipt_long), label: 'Bills'),
         ],
       ),
     );

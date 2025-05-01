@@ -28,16 +28,14 @@ environment:
 # the latest version available on pub.dev. To see which dependencies have newer
 # versions available, run `flutter pub outdated`.
 dependencies:
-  lottie: ^2.7.0
-  uuid: ^3.0.7
+  geolocator: ^10.1.0
+  lottie: ^2.7.0   # used for animation 
+  uuid: ^3.0.7     # used for generating unique id for each device
+  charts_flutter: ^0.12.0   # used for visulizing data
   flutter:
     sdk: flutter
+
   
-
-  # The following adds the Cupertino Icons font to your application.
-  # Use with the CupertinoIcons class for iOS style icons.
-  cupertino_icons: ^1.0.8
-
 dev_dependencies:
   flutter_test:
     sdk: flutter
