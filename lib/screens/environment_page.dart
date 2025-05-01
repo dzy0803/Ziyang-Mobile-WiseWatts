@@ -1,4 +1,7 @@
+import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
 
 class EnvironmentPage extends StatefulWidget {
   @override
@@ -12,11 +15,64 @@ class _EnvironmentPageState extends State<EnvironmentPage> {
   String postcode = '';
   String country = '';
 
+  double light = 0;
+  double temperature = 0;
+  double humidity = 0;
+  double pressure = 0;
+
+  final List<double> lightHistory = [];
+  final List<double> temperatureHistory = [];
+  final List<double> humidityHistory = [];
+  final List<double> pressureHistory = [];
+
+  Timer? timer;
+  final random = Random();
+
+  bool get isAddressFilled =>
+      addressLine1.isNotEmpty &&
+      city.isNotEmpty &&
+      postcode.isNotEmpty &&
+      country.isNotEmpty;
+
+  @override
+  void initState() {
+    super.initState();
+    if (isAddressFilled) _startSimulation();
+  }
+
+  @override
+  void dispose() {
+    timer?.cancel();
+    super.dispose();
+  }
+
+  void _startSimulation() {
+    timer?.cancel();
+    timer = Timer.periodic(Duration(seconds: 1), (_) {
+      setState(() {
+        light = 100 + random.nextDouble() * 900;
+        temperature = 15 + random.nextDouble() * 15;
+        humidity = 30 + random.nextDouble() * 70;
+        pressure = 980 + random.nextDouble() * 40;
+
+        _updateHistory(lightHistory, light);
+        _updateHistory(temperatureHistory, temperature);
+        _updateHistory(humidityHistory, humidity);
+        _updateHistory(pressureHistory, pressure);
+      });
+    });
+  }
+
+  void _updateHistory(List<double> history, double value) {
+    history.add(value);
+    if (history.length > 60) history.removeAt(0);
+  }
+
   @override
   Widget build(BuildContext context) {
-    String fullAddress = (addressLine1.isEmpty || city.isEmpty || postcode.isEmpty || country.isEmpty)
-        ? 'No address set'
-        : '$addressLine1${addressLine2.isNotEmpty ? ', $addressLine2' : ''}, $city, $postcode, $country';
+    String fullAddress = isAddressFilled
+        ? '$addressLine1${addressLine2.isNotEmpty ? ', $addressLine2' : ''}, $city, $postcode, $country'
+        : 'No address set';
 
     return Scaffold(
       appBar: AppBar(
@@ -28,7 +84,6 @@ class _EnvironmentPageState extends State<EnvironmentPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Home Address
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -63,73 +118,108 @@ class _EnvironmentPageState extends State<EnvironmentPage> {
                         postcode = result['postcode'];
                         country = result['country'];
                       });
+                      if (isAddressFilled) {
+                        _startSimulation();
+                      } else {
+                        timer?.cancel();
+                      }
                     }
                   },
-                )
+                ),
               ],
             ),
             SizedBox(height: 24),
 
-            // Light Sensor
-            _buildSensorCard(
-              icon: Icons.wb_sunny,
-              label: 'Ambient Light',
-              value: '--',
-              unit: 'lux',
-              color: Colors.yellow.shade600,
-            ),
+            _buildSensorCard(Icons.wb_sunny, 'Ambient Light', light, 'lux', Colors.yellow.shade600),
             SizedBox(height: 16),
-
-            // Temperature Sensor
-            _buildSensorCard(
-              icon: Icons.thermostat,
-              label: 'Temperature',
-              value: '--',
-              unit: '°C',
-              color: Colors.redAccent,
-            ),
+            _buildSensorCard(Icons.thermostat, 'Temperature', temperature, '°C', Colors.redAccent),
             SizedBox(height: 16),
-
-            // Humidity Sensor
-            _buildSensorCard(
-              icon: Icons.water_drop,
-              label: 'Humidity',
-              value: '--',
-              unit: '%',
-              color: Colors.blueAccent,
-            ),
+            _buildSensorCard(Icons.water_drop, 'Humidity', humidity, '%', Colors.blueAccent),
             SizedBox(height: 16),
-
-            // Air Pressure Sensor
-            _buildSensorCard(
-              icon: Icons.speed,
-              label: 'Air Pressure',
-              value: '--',
-              unit: 'hPa',
-              color: Colors.deepPurpleAccent,
-            ),
+            _buildSensorCard(Icons.speed, 'Air Pressure', pressure, 'hPa', Colors.deepPurpleAccent),
             SizedBox(height: 30),
 
-            // Placeholder for Graph or History
-            Center(
-              child: Text(
-                'Sensor history or charts coming soon...',
-                style: TextStyle(fontSize: 14, color: Colors.grey),
+            // 美化后的标题 + 图例
+            Container(
+              padding: EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.show_chart, color: Colors.orangeAccent),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Sensor History                                                                 (last hour / one reading per miniute)',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
               ),
             ),
+            SizedBox(height: 12),
+            Wrap(
+              spacing: 16,
+              runSpacing: 8,
+              children: [
+                _buildLegendDot(color: Colors.yellow.shade700, label: 'Light (lux)'),
+                _buildLegendDot(color: Colors.redAccent, label: 'Temperature (°C)'),
+                _buildLegendDot(color: Colors.blueAccent, label: 'Humidity (%)'),
+                _buildLegendDot(color: Colors.deepPurpleAccent, label: 'Pressure (hPa)'),
+              ],
+            ),
+            SizedBox(height: 16),
+
+            SizedBox(
+              height: 220,
+              child: LineChart(
+                LineChartData(
+                  gridData: FlGridData(show: true),
+                  titlesData: FlTitlesData(show: false),
+                  borderData: FlBorderData(show: true),
+                  lineBarsData: [
+                    LineChartBarData(
+                      spots: lightHistory.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value)).toList(),
+                      isCurved: true,
+                      color: Colors.yellow.shade700,
+                      barWidth: 2,
+                      dotData: FlDotData(show: false),
+                    ),
+                    LineChartBarData(
+                      spots: temperatureHistory.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value)).toList(),
+                      isCurved: true,
+                      color: Colors.redAccent,
+                      barWidth: 2,
+                      dotData: FlDotData(show: false),
+                    ),
+                    LineChartBarData(
+                      spots: humidityHistory.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value)).toList(),
+                      isCurved: true,
+                      color: Colors.blueAccent,
+                      barWidth: 2,
+                      dotData: FlDotData(show: false),
+                    ),
+                    LineChartBarData(
+                      spots: pressureHistory.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value)).toList(),
+                      isCurved: true,
+                      color: Colors.deepPurpleAccent,
+                      barWidth: 2,
+                      dotData: FlDotData(show: false),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            SizedBox(height: 20),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSensorCard({
-    required IconData icon,
-    required String label,
-    required String value,
-    required String unit,
-    required Color color,
-  }) {
+  Widget _buildSensorCard(IconData icon, String label, double value, String unit, Color color) {
     return Card(
       elevation: 3,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -148,7 +238,7 @@ class _EnvironmentPageState extends State<EnvironmentPage> {
                 Text(label, style: TextStyle(fontSize: 16, color: Colors.grey[700])),
                 SizedBox(height: 6),
                 Text(
-                  '$value $unit',
+                  isAddressFilled ? '${value.toStringAsFixed(1)} $unit' : '-- $unit',
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black),
                 ),
               ],
@@ -156,6 +246,17 @@ class _EnvironmentPageState extends State<EnvironmentPage> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildLegendDot({required Color color, required String label}) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(width: 12, height: 12, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        SizedBox(width: 6),
+        Text(label, style: TextStyle(fontSize: 12)),
+      ],
     );
   }
 }
@@ -210,7 +311,6 @@ class _EditAddressPageState extends State<EditAddressPage> {
           key: _formKey,
           child: ListView(
             children: [
-              // Address Line 1
               TextFormField(
                 initialValue: addressLine1,
                 decoration: InputDecoration(labelText: 'Address Line 1 *'),
@@ -218,16 +318,12 @@ class _EditAddressPageState extends State<EditAddressPage> {
                 onSaved: (value) => addressLine1 = value ?? '',
               ),
               SizedBox(height: 16),
-
-              // Address Line 2 (optional)
               TextFormField(
                 initialValue: addressLine2,
                 decoration: InputDecoration(labelText: 'Street / Block (optional)'),
                 onSaved: (value) => addressLine2 = value ?? '',
               ),
               SizedBox(height: 16),
-
-              // City
               TextFormField(
                 initialValue: city,
                 decoration: InputDecoration(labelText: 'City *'),
@@ -235,8 +331,6 @@ class _EditAddressPageState extends State<EditAddressPage> {
                 onSaved: (value) => city = value ?? '',
               ),
               SizedBox(height: 16),
-
-              // Postcode
               TextFormField(
                 initialValue: postcode,
                 decoration: InputDecoration(labelText: 'Postcode *'),
@@ -244,8 +338,6 @@ class _EditAddressPageState extends State<EditAddressPage> {
                 onSaved: (value) => postcode = value ?? '',
               ),
               SizedBox(height: 16),
-
-              // Country
               TextFormField(
                 initialValue: country,
                 decoration: InputDecoration(labelText: 'Country *'),
@@ -253,7 +345,6 @@ class _EditAddressPageState extends State<EditAddressPage> {
                 onSaved: (value) => country = value ?? '',
               ),
               SizedBox(height: 24),
-
               ElevatedButton(
                 onPressed: () {
                   if (_formKey.currentState!.validate()) {
