@@ -68,6 +68,7 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     );
                     Future.delayed(Duration(seconds: 1), () {
+                      // 登录成功后清理堆栈并跳转到主页面
                       widget.onLoginSuccess();
                     });
                   } else {

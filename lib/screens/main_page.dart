@@ -1,10 +1,10 @@
+
+// ✅ main_page.dart
 import 'package:flutter/material.dart';
 import 'home_page.dart';
 import 'devices_page.dart';
 import 'energy_hub_page.dart';
 import 'environment_page.dart';
-import 'sensor_data_model.dart';
-import 'package:provider/provider.dart';
 
 class MainPage extends StatefulWidget {
   @override
@@ -14,7 +14,6 @@ class MainPage extends StatefulWidget {
 class _MainPageState extends State<MainPage> {
   int _currentIndex = 0;
 
-  // Shared device list
   List<Map<String, dynamic>> devices = [];
 
   void _addDevice(Map<String, dynamic> device) {
@@ -45,7 +44,7 @@ class _MainPageState extends State<MainPage> {
         devices: devices,
         onViewDevices: () {
           setState(() {
-            _currentIndex = 2; // Devices now at index 2
+            _currentIndex = 2;
           });
         },
       ),
@@ -59,30 +58,27 @@ class _MainPageState extends State<MainPage> {
       EnergyHubPage(),
     ];
 
-    return ChangeNotifierProvider(
-      create: (_) => SensorDataModel(),
-      child: Scaffold(
-        body: IndexedStack(
-          index: _currentIndex,
-          children: _pages,
-        ),
-        bottomNavigationBar: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          selectedItemColor: Colors.orangeAccent,
-          unselectedItemColor: Colors.grey,
-          type: BottomNavigationBarType.fixed,
-          onTap: (index) {
-            setState(() {
-              _currentIndex = index;
-            });
-          },
-          items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-            BottomNavigationBarItem(icon: Icon(Icons.sensors), label: 'Environment'),
-            BottomNavigationBarItem(icon: Icon(Icons.devices), label: 'Devices'),
-            BottomNavigationBarItem(icon: Icon(Icons.bolt), label: 'Energy Hub'),
-          ],
-        ),
+    return Scaffold(
+      body: IndexedStack(
+        index: _currentIndex,
+        children: _pages,
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        selectedItemColor: Colors.orangeAccent,
+        unselectedItemColor: Colors.grey,
+        type: BottomNavigationBarType.fixed,
+        onTap: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+        },
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.sensors), label: 'Environment'),
+          BottomNavigationBarItem(icon: Icon(Icons.devices), label: 'Devices'),
+          BottomNavigationBarItem(icon: Icon(Icons.bolt), label: 'Energy Hub'),
+        ],
       ),
     );
   }
