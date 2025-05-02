@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "287667900038",
+    "project_id": "wisewatts-5a0fa",
+    "storage_bucket": "wisewatts-5a0fa.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:287667900038:android:66a1c7590372d919c78b07",
+        "android_client_info": {
+          "package_name": "com.example.wisewatts"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD0Pr2PvWZdPleVrBb6Mqv_joOtCkoZROk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

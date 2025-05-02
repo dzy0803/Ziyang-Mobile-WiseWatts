@@ -5,10 +5,14 @@ import 'screens/splash_page.dart';
 import 'screens/main_page.dart';
 import 'screens/login_page.dart';
 import 'screens/sensor_data_model.dart';
+import 'package:firebase_core/firebase_core.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
   runApp(WiseWattsApp());
 }
+
 
 class WiseWattsApp extends StatelessWidget {
   @override

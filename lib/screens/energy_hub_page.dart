@@ -1,24 +1,21 @@
+// ✅ energy_hub_page.dart
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/services.dart';
 import 'dart:math';
-
-import 'package:wisewatts/self_build_widget/budget_progress_ring.dart'; // self-build widget
+import 'package:wisewatts/self_build_widget/budget_progress_ring.dart' ;
 
 class EnergyHubPage extends StatefulWidget {
+  final List<Map<String, dynamic>> devices;
+  EnergyHubPage({required this.devices});
+
   @override
   _EnergyHubPageState createState() => _EnergyHubPageState();
 }
 
 class _EnergyHubPageState extends State<EnergyHubPage> {
   final Map<String, List<double>> _simulatedData = {};
-  final List<String> _addedDevices = [
-    'Air Conditioner',
-    'Smart TV',
-    'Washing Machine',
-  ];
-
   List<double> _totalEnergyHistory = [];
   List<String> _energyTips = [];
   double _energyBudget = 2500.0;
@@ -29,11 +26,21 @@ class _EnergyHubPageState extends State<EnergyHubPage> {
     _generateSimulatedData();
   }
 
+  @override
+  void didUpdateWidget(covariant EnergyHubPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _generateSimulatedData();
+  }
+
   void _generateSimulatedData() {
     final random = Random();
-    for (String device in _addedDevices) {
-      _simulatedData[device] =
-          List.generate(24, (_) => 60 + random.nextInt(80) + random.nextDouble());
+    _simulatedData.clear();
+    for (var device in widget.devices) {
+      String name = device['name'];
+      bool isOnline = device['isOnline'];
+      _simulatedData[name] = isOnline
+          ? List.generate(24, (_) => 60 + random.nextInt(80) + random.nextDouble())
+          : List.generate(24, (_) => 0.0);
     }
     _calculateTotalEnergy();
     _generateEnergyTips();
@@ -55,39 +62,40 @@ class _EnergyHubPageState extends State<EnergyHubPage> {
       double avg = entry.value.reduce((a, b) => a + b) / entry.value.length;
       if (avg > 120) {
         _energyTips.add("${entry.key} is consuming high power. Consider reducing usage.");
-      } else if (avg < 80) {
+      } else if (avg < 80 && avg > 0) {
         _energyTips.add("${entry.key} is operating efficiently. No action needed.");
+      } else if (avg == 0) {
+        _energyTips.add("${entry.key} is offline. No energy consumption.");
       } else {
         _energyTips.add("${entry.key} has moderate power consumption. Monitor usage if necessary.");
       }
     }
   }
 
-void _updateBudget(double newBudget) {
-  setState(() {
-    _energyBudget = newBudget;
-  });
+  void _updateBudget(double newBudget) {
+    setState(() {
+      _energyBudget = newBudget;
+    });
 
-  HapticFeedback.selectionClick();
+    HapticFeedback.selectionClick();
 
-  if (newBudget == 5000) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.warning_amber_rounded, color: Colors.white),
-            SizedBox(width: 12),
-            Expanded(child: Text("You’ve reached the maximum budget!")),
-          ],
+    if (newBudget == 5000) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.white),
+              SizedBox(width: 12),
+              Expanded(child: Text("You’ve reached the maximum budget!")),
+            ],
+          ),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 3),
         ),
-        backgroundColor: Colors.redAccent,
-        behavior: SnackBarBehavior.floating,
-        duration: Duration(seconds: 3),
-      ),
-    );
+      );
+    }
   }
-}
-
 
   Color _getBudgetColor(double budget) {
     final t = (budget - 1000) / 4000;
@@ -209,15 +217,16 @@ void _updateBudget(double newBudget) {
           SizedBox(height: 24),
           Text('Device Energy Overview', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.orange)),
           SizedBox(height: 12),
-          ..._addedDevices.map((device) {
-            final history = _simulatedData[device]!;
+          ...widget.devices.map((device) {
+            final name = device['name'];
+            final history = _simulatedData[name]!;
             final current = history.last;
             return Card(
               elevation: 3,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               child: ExpansionTile(
                 leading: Icon(Icons.power, color: Colors.orange),
-                title: Text(device),
+                title: Text(name),
                 subtitle: Text('Current: ${current.toStringAsFixed(1)} W'),
                 children: [
                   Padding(
@@ -233,3 +242,5 @@ void _updateBudget(double newBudget) {
     );
   }
 }
+
+// NOTE: Ensure you import BudgetProgressRing if it's not yet included.

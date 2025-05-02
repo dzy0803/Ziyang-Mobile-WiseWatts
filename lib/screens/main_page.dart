@@ -1,5 +1,5 @@
 
-// main_page.dart
+// ✅ main_page.dart
 import 'package:flutter/material.dart';
 import 'home_page.dart';
 import 'devices_page.dart';
@@ -13,7 +13,6 @@ class MainPage extends StatefulWidget {
 
 class _MainPageState extends State<MainPage> {
   int _currentIndex = 0;
-
   List<Map<String, dynamic>> devices = [];
 
   void _addDevice(Map<String, dynamic> device) {
@@ -55,7 +54,7 @@ class _MainPageState extends State<MainPage> {
         onRemoveDevice: _removeDevice,
         onToggleDeviceStatus: _toggleDeviceStatus,
       ),
-      EnergyHubPage(),
+      EnergyHubPage(devices: devices),
     ];
 
     return Scaffold(
