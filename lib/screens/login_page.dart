@@ -18,9 +18,7 @@ class _LoginPageState extends State<LoginPage> {
   bool _isLoading = false;
 
   void _login() async {
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
       final email = _emailController.text.trim();
@@ -40,7 +38,7 @@ class _LoginPageState extends State<LoginPage> {
       );
 
       Future.delayed(Duration(milliseconds: 800), () {
-        widget.onLoginSuccess(); // navigate to main
+        widget.onLoginSuccess(); // Navigate to main
       });
     } on FirebaseAuthException catch (e) {
       String message = 'Login failed.';
@@ -58,9 +56,41 @@ class _LoginPageState extends State<LoginPage> {
         ),
       );
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
+    }
+  }
+
+  void _resetPassword() async {
+    final email = _emailController.text.trim();
+
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please enter your email to reset password.'),
+          backgroundColor: Colors.orangeAccent,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('📧 Password reset email sent.'),
+          backgroundColor: Colors.blueAccent,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to send reset email.'),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 
@@ -75,8 +105,23 @@ class _LoginPageState extends State<LoginPage> {
         padding: const EdgeInsets.all(24.0),
         child: SingleChildScrollView(
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              // 🔔 Info text
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.info_outline, color: Colors.orangeAccent),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Please log in using your registered email and password.',
+                      style: TextStyle(fontSize: 14, color: Colors.black87),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 20),
+
               TextField(
                 controller: _emailController,
                 decoration: InputDecoration(
@@ -85,6 +130,7 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
               SizedBox(height: 20),
+
               TextField(
                 controller: _passwordController,
                 obscureText: true,
@@ -93,7 +139,16 @@ class _LoginPageState extends State<LoginPage> {
                   border: OutlineInputBorder(),
                 ),
               ),
-              SizedBox(height: 30),
+
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: _resetPassword,
+                  child: Text('Forgot password?'),
+                ),
+              ),
+
+              SizedBox(height: 10),
 
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
