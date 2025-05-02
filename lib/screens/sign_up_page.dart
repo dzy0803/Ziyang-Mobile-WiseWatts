@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class SignUpPage extends StatefulWidget {
   @override
@@ -39,12 +40,21 @@ class _SignUpPageState extends State<SignUpPage> {
     }
 
     try {
-      await FirebaseAuth.instance.createUserWithEmailAndPassword(
+      final userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
 
-      // ✅ 可扩展写入 name, phone, address 到数据库
+      final user = userCredential.user;
+      if (user != null) {
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+          'name': name,
+          'phone': phone,
+          'address': address,
+          'email': email,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -113,25 +123,18 @@ class _SignUpPageState extends State<SignUpPage> {
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
               SizedBox(height: 30),
-
               _buildTextField(_nameController, 'Full Name'),
               SizedBox(height: 20),
-
               _buildTextField(_phoneController, 'Phone Number', keyboardType: TextInputType.phone),
               SizedBox(height: 20),
-
               _buildTextField(_addressController, 'Home Address'),
               SizedBox(height: 20),
-
               _buildTextField(_emailController, 'Email', keyboardType: TextInputType.emailAddress),
               SizedBox(height: 20),
-
               _buildTextField(_passwordController, 'Password (min 6 chars)', obscure: true),
               SizedBox(height: 20),
-
               _buildTextField(_confirmPasswordController, 'Confirm Password', obscure: true),
               SizedBox(height: 30),
-
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blueAccent,

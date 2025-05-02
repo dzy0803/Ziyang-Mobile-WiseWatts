@@ -1,6 +1,8 @@
 // home_page.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'top_up_page.dart';
 import 'sensor_data_model.dart';
 
@@ -17,6 +19,26 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   double accountBalance = 0.0;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  String userName = 'User';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserName();
+  }
+
+  // Load user name from Firestore using current user's UID
+  void _loadUserName() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      if (doc.exists) {
+        setState(() {
+          userName = doc.data()?['name'] ?? 'User';
+        });
+      }
+    }
+  }
 
   void _showNavigateDialog() async {
     final result = await showDialog<double>(
@@ -65,7 +87,7 @@ class _HomePageState extends State<HomePage> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.orangeAccent,
-        title: Text('Welcome back, Ziyang!'),
+        title: Text('Welcome back, $userName!'),
         leading: IconButton(icon: Icon(Icons.menu), onPressed: () => _scaffoldKey.currentState?.openDrawer()),
       ),
       drawer: Drawer(
@@ -175,6 +197,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  // Build a single row for a sensor reading with icon, label, and value
   Widget _buildSensorRow(IconData icon, String label, double? value, String unit) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
