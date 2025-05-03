@@ -24,6 +24,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  DateTime? _lastUpdated;
   Timer? _weatherTimer;
   double accountBalance = 0.0;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
@@ -174,6 +175,7 @@ void _fetchWeather(double lat, double lon) async {
         temperatureCelsius = currentData['main']['temp'].toDouble();
         humidity = currentData['main']['humidity'].toDouble();
         windSpeed = currentData['wind']['speed'].toDouble();
+        _lastUpdated = DateTime.now();
 
         final forecastList = forecastData['list'] as List<dynamic>;
 
@@ -196,54 +198,42 @@ void _fetchWeather(double lat, double lon) async {
 }
 
 
-  Widget _buildWeatherCard() {
-    IconData weatherIcon;
-    if (weatherDescription.toLowerCase().contains('cloud')) {
-      weatherIcon = Icons.cloud;
-    } else if (weatherDescription.toLowerCase().contains('rain')) {
-      weatherIcon = Icons.grain;
-    } else if (weatherDescription.toLowerCase().contains('sun') || weatherDescription.toLowerCase().contains('clear')) {
-      weatherIcon = Icons.wb_sunny;
-    } else if (weatherDescription.toLowerCase().contains('snow')) {
-      weatherIcon = Icons.ac_unit;
-    } else {
-      weatherIcon = Icons.thermostat;
-    }
-
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: 4,
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(children: [
-              Icon(weatherIcon, color: Colors.orangeAccent),
-              SizedBox(width: 8),
-              Text('Current Weather', style: TextStyle(fontSize: 18, color: Colors.grey[700])),
-            ]),
-            SizedBox(height: 10),
-            Text(cityName, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            SizedBox(height: 6),
-            Text('$weatherDescription', style: TextStyle(fontSize: 16, fontStyle: FontStyle.italic)),
-            SizedBox(height: 6),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('🌡️ ${temperatureCelsius.toStringAsFixed(1)} °C', style: TextStyle(fontSize: 16)),
-                Text('💧 ${humidity.toStringAsFixed(0)}%', style: TextStyle(fontSize: 16)),
-                Text('🌬️ ${windSpeed.toStringAsFixed(1)} m/s', style: TextStyle(fontSize: 16)),
-              ],
-            ),
-          ],
-        ),
+Widget _buildWeatherCard() {
+  return Card(
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    elevation: 4,
+    child: Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Image.asset(_getWeatherIconAsset(weatherDescription), width: 40, height: 40),
+            SizedBox(width: 8),
+            Text('Current Weather', style: TextStyle(fontSize: 18, color: Colors.grey[700])),
+          ]),
+          SizedBox(height: 10),
+          Text(cityName, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          SizedBox(height: 6),
+          Text('$weatherDescription', style: TextStyle(fontSize: 16, fontStyle: FontStyle.italic)),
+          SizedBox(height: 6),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('🌡️ ${temperatureCelsius.toStringAsFixed(1)} °C', style: TextStyle(fontSize: 16)),
+              Text('💧 ${humidity.toStringAsFixed(0)}%', style: TextStyle(fontSize: 16)),
+              Text('🌬️ ${windSpeed.toStringAsFixed(1)} m/s', style: TextStyle(fontSize: 16)),
+            ],
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
 
- Widget _buildForecastCard() {
- if (hourlyForecast.isEmpty) {
+
+Widget _buildForecastCard() {
+  if (hourlyForecast.isEmpty) {
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       elevation: 4,
@@ -281,10 +271,11 @@ void _fetchWeather(double lat, double lon) async {
           Row(children: [
             Icon(Icons.schedule, color: Colors.blueAccent),
             SizedBox(width: 8),
-            Text('6-Hour Forecast', style: TextStyle(fontSize: 18, color: Colors.grey[700])),
+            Text('Weather Forecast ', style: TextStyle(fontSize: 18, color: Colors.grey[700])),
           ]),
           SizedBox(height: 16),
 
+          // Linearline plot for Temperature
           SizedBox(
             height: 200,
             child: LineChart(
@@ -335,10 +326,9 @@ void _fetchWeather(double lat, double lon) async {
 
           SizedBox(height: 16),
 
-          // list（time + icon + description + temperature)
+          // Time + Icon + Description + Temperature
           Column(
             children: hourlyForecast.map((entry) {
-              IconData icon = _getWeatherIcon(entry['desc']);
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4.0),
                 child: Row(
@@ -347,7 +337,7 @@ void _fetchWeather(double lat, double lon) async {
                     Text(entry['time'], style: TextStyle(fontSize: 16)),
                     Row(
                       children: [
-                        Icon(icon, color: Colors.blueGrey),
+                        Image.asset(_getWeatherIconAsset(entry['desc']), width: 24, height: 24),
                         SizedBox(width: 6),
                         Text(entry['desc'], style: TextStyle(fontSize: 16)),
                       ],
@@ -365,27 +355,61 @@ void _fetchWeather(double lat, double lon) async {
 }
 
 
-IconData _getWeatherIcon(String description) {
+
+String _getWeatherIconAsset(String description) {
   final desc = description.toLowerCase();
-  if (desc.contains('cloud')) return Icons.cloud;
-  if (desc.contains('rain') || desc.contains('shower')) return Icons.grain;
-  if (desc.contains('clear') || desc.contains('sun')) return Icons.wb_sunny;
-  if (desc.contains('snow')) return Icons.ac_unit;
-  if (desc.contains('storm') || desc.contains('thunder')) return Icons.flash_on;
-  return Icons.thermostat;
+
+  if (desc.contains('clear')) return 'assets/icons/clear.png';
+  if (desc.contains('few clouds')) return 'assets/icons/fewcloud.png';
+  if (desc.contains('scattered clouds')) return 'assets/icons/scatteredcloud.png';
+  if (desc.contains('broken clouds') || desc.contains('overcast')) return 'assets/icons/brokencloud.png';
+  if (desc.contains('rain') || desc.contains('drizzle')) return 'assets/icons/rain.png';
+
+  return 'assets/icons/clear.png'; // fallback
 }
 
 
-  Widget _buildWeatherSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildWeatherCard(),
-        SizedBox(height: 16),
-        _buildForecastCard(),
-      ],
-    );
-  }
+
+Widget _buildWeatherSection() {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      // weather refresh button + refresh timestamp
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          ElevatedButton.icon(
+            onPressed: () async {
+              if (_currentLatLng != null) {
+                _showLoadingDialog(); // loading animation
+                await Future.delayed(Duration(seconds: 1)); // for 1 seconds
+                Navigator.of(context).pop(); // close the loading animation
+                _fetchWeather(_currentLatLng!.latitude, _currentLatLng!.longitude); // refresh data
+              }
+            },
+            icon: Icon(Icons.refresh),
+            label: Text('Refresh Weather'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blueAccent,
+              foregroundColor: Colors.white,
+            ),
+          ),
+          if (_lastUpdated != null)
+            Text(
+              'Last updated: ${_lastUpdated!.hour.toString().padLeft(2, '0')}:${_lastUpdated!.minute.toString().padLeft(2, '0')}',
+              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+            ),
+        ],
+      ),
+      SizedBox(height: 16),
+      _buildWeatherCard(),
+      SizedBox(height: 16),
+      _buildForecastCard(),
+    ],
+  );
+}
+
+
 
   void _showNavigateDialog() async {
     final result = await showDialog<double>(
@@ -419,6 +443,28 @@ IconData _getWeatherIcon(String description) {
       ),
     );
   }
+
+  void _showLoadingDialog() {
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 16),
+            Text('Refreshing...', style: TextStyle(fontSize: 16)),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
 
   void _logout() {
     Navigator.pushReplacementNamed(context, '/login');
