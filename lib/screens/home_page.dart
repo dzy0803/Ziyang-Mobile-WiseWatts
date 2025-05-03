@@ -24,6 +24,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  Timer? _weatherTimer;
   double accountBalance = 0.0;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   String userName = 'User';
@@ -49,14 +50,20 @@ class _HomePageState extends State<HomePage> {
     _determinePositionAndAddress();
     _startLocationUpdates();
     _loadHomeAddressLocation();
+    _weatherTimer = Timer.periodic(Duration(minutes: 15), (timer) {
+  if (_currentLatLng != null) {
+    _fetchWeather(_currentLatLng!.latitude, _currentLatLng!.longitude);
+  }
+});
   }
 
-  @override
-  void dispose() {
-    _positionStream?.cancel();
-    _userStream?.cancel();
-    super.dispose();
-  }
+@override
+void dispose() {
+  _weatherTimer?.cancel();
+  _positionStream?.cancel();
+  _userStream?.cancel();
+  super.dispose();
+}
 
   void _listenToUserData() {
     final user = FirebaseAuth.instance.currentUser;
@@ -236,6 +243,28 @@ void _fetchWeather(double lat, double lon) async {
   }
 
  Widget _buildForecastCard() {
+ if (hourlyForecast.isEmpty) {
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 4,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Row(
+          children: [
+            Icon(Icons.error_outline, color: Colors.redAccent),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'No forecast data available.',
+                style: TextStyle(fontSize: 16, color: Colors.grey[700]),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   double minTemp = hourlyForecast.map((e) => e['temp'] as double).reduce((a, b) => a < b ? a : b);
   double maxTemp = hourlyForecast.map((e) => e['temp'] as double).reduce((a, b) => a > b ? a : b);
   double yMin = (minTemp - 2).floorToDouble();
