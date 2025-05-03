@@ -2,7 +2,234 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'sensor_data_model.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geocoding/geocoding.dart';
+
+import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+class EditAddressPage extends StatefulWidget {
+  final String addressLine1;
+  final String addressLine2;
+  final String city;
+  final String postcode;
+  final String country;
+
+  EditAddressPage({
+    required this.addressLine1,
+    required this.addressLine2,
+    required this.city,
+    required this.postcode,
+    required this.country,
+  });
+
+  @override
+  _EditAddressPageState createState() => _EditAddressPageState();
+}
+
+class _EditAddressPageState extends State<EditAddressPage> {
+  final _formKey = GlobalKey<FormState>();
+  late String addressLine1;
+  late String addressLine2;
+  late String city;
+  late String postcode;
+  late String country;
+
+  LatLng? location;
+  GoogleMapController? mapController;
+
+  @override
+  void initState() {
+    super.initState();
+    addressLine1 = widget.addressLine1;
+    addressLine2 = widget.addressLine2;
+    city = widget.city;
+    postcode = widget.postcode;
+    country = widget.country;
+    _updateMapLocation(); // Initial map location
+  }
+
+  // Convert address string to geographic coordinates
+  Future<void> _updateMapLocation() async {
+    final fullAddress =
+        '$addressLine1 ${addressLine2.isNotEmpty ? addressLine2 + ',' : ''} $city, $postcode, $country';
+    try {
+      List<Location> locations = await locationFromAddress(fullAddress);
+      if (locations.isNotEmpty) {
+        setState(() {
+          location =
+              LatLng(locations.first.latitude, locations.first.longitude);
+        });
+        mapController?.animateCamera(CameraUpdate.newLatLng(location!));
+      }
+    } catch (e) {
+      print('Geocoding failed: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not locate this address.')),
+      );
+    }
+  }
+
+  // Save form data, update map and sync to Firebase
+  void _handleSaveAndUpdateMap() async {
+    if (_formKey.currentState!.validate()) {
+      _formKey.currentState!.save();
+
+      await _updateMapLocation();
+
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final fullAddress =
+            '$addressLine1${addressLine2.isNotEmpty ? ', $addressLine2' : ''}, $city, $postcode, $country';
+
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .update({
+          'addressLine1': addressLine1,
+          'addressLine2': addressLine2,
+          'city': city,
+          'postcode': postcode,
+          'country': country,
+          'address': fullAddress, // Updated readable address
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Address updated and synced to cloud.')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('User not logged in.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // Return updated address to EnvironmentPage
+  void _returnWithData() {
+    Navigator.pop(context, {
+      'addressLine1': addressLine1,
+      'addressLine2': addressLine2,
+      'city': city,
+      'postcode': postcode,
+      'country': country,
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final mapHeight = MediaQuery.of(context).size.height * 0.3;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Edit Home Address'),
+        backgroundColor: Colors.orangeAccent,
+        actions: [
+          IconButton(
+            icon: Icon(Icons.check),
+            tooltip: 'Return with Address',
+            onPressed: _returnWithData,
+          )
+        ],
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Form(
+          key: _formKey,
+          child: ListView(
+            children: [
+              TextFormField(
+                initialValue: addressLine1,
+                decoration: InputDecoration(labelText: 'Address Line 1 *'),
+                validator: (value) =>
+                    value == null || value.isEmpty ? 'Required' : null,
+                onSaved: (value) => addressLine1 = value ?? '',
+              ),
+              SizedBox(height: 16),
+              TextFormField(
+                initialValue: addressLine2,
+                decoration:
+                    InputDecoration(labelText: 'Street / Block (optional)'),
+                onSaved: (value) => addressLine2 = value ?? '',
+              ),
+              SizedBox(height: 16),
+              TextFormField(
+                initialValue: city,
+                decoration: InputDecoration(labelText: 'City *'),
+                validator: (value) =>
+                    value == null || value.isEmpty ? 'Required' : null,
+                onSaved: (value) => city = value ?? '',
+              ),
+              SizedBox(height: 16),
+              TextFormField(
+                initialValue: postcode,
+                decoration: InputDecoration(labelText: 'Postcode *'),
+                validator: (value) =>
+                    value == null || value.isEmpty ? 'Required' : null,
+                onSaved: (value) => postcode = value ?? '',
+              ),
+              SizedBox(height: 16),
+              TextFormField(
+                initialValue: country,
+                decoration: InputDecoration(labelText: 'Country *'),
+                validator: (value) =>
+                    value == null || value.isEmpty ? 'Required' : null,
+                onSaved: (value) => country = value ?? '',
+              ),
+              SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: _handleSaveAndUpdateMap,
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orangeAccent),
+                icon: Icon(Icons.save),
+                label: Text('Save and Update Map'),
+              ),
+              SizedBox(height: 30),
+              Text('Map Location Preview',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              SizedBox(height: 12),
+              Container(
+                height: mapHeight,
+                decoration:
+                    BoxDecoration(border: Border.all(color: Colors.grey)),
+                child: location == null
+                    ? Center(child: Text('Address not located'))
+                    : GoogleMap(
+                        initialCameraPosition: CameraPosition(
+                          target: location!,
+                          zoom: 16,
+                        ),
+                        markers: {
+                          Marker(
+                            markerId: MarkerId('home'),
+                            position: location!,
+                            icon: BitmapDescriptor.defaultMarkerWithHue(
+                                BitmapDescriptor.hueAzure), // 💙 Blue marker
+                            infoWindow: InfoWindow(title: 'Home Address'),
+                          )
+                        },
+                        onMapCreated: (controller) =>
+                            mapController = controller,
+                        zoomControlsEnabled: false,
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 
 class EnvironmentPage extends StatefulWidget {
   @override
@@ -38,7 +265,7 @@ class _EnvironmentPageState extends State<EnvironmentPage> {
   @override
   void initState() {
     super.initState();
-    if (isAddressFilled) _startSimulation();
+    _loadAddressFromFirebase();
   }
 
   @override
@@ -47,6 +274,31 @@ class _EnvironmentPageState extends State<EnvironmentPage> {
     super.dispose();
   }
 
+  // Load user address from Firestore
+  Future<void> _loadAddressFromFirebase() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+    if (doc.exists) {
+      final data = doc.data();
+      if (data != null) {
+        setState(() {
+          addressLine1 = data['addressLine1'] ?? '';
+          addressLine2 = data['addressLine2'] ?? '';
+          city = data['city'] ?? '';
+          postcode = data['postcode'] ?? '';
+          country = data['country'] ?? '';
+        });
+
+        if (isAddressFilled) {
+          _startSimulation();
+        }
+      }
+    }
+  }
+
+  // Start generating simulated sensor data
   void _startSimulation() {
     timer?.cancel();
     SensorDataModel().startAveraging();
@@ -72,6 +324,7 @@ class _EnvironmentPageState extends State<EnvironmentPage> {
     });
   }
 
+  // Update chart history buffer
   void _updateHistory(List<double> history, double value) {
     history.add(value);
     if (history.length > 60) history.removeAt(0);
@@ -127,6 +380,18 @@ class _EnvironmentPageState extends State<EnvironmentPage> {
                         postcode = result['postcode'];
                         country = result['country'];
                       });
+
+                      final user = FirebaseAuth.instance.currentUser;
+                      if (user != null) {
+                        FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+                          'addressLine1': addressLine1,
+                          'addressLine2': addressLine2,
+                          'city': city,
+                          'postcode': postcode,
+                          'country': country,
+                        });
+                      }
+
                       if (isAddressFilled) {
                         _startSimulation();
                       } else {
@@ -158,7 +423,7 @@ class _EnvironmentPageState extends State<EnvironmentPage> {
                   SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Sensor History                                                                 (last hour / one reading per miniute)',
+                      'Sensor History (last hour / one reading per minute)',
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                   ),
@@ -262,115 +527,6 @@ class _EnvironmentPageState extends State<EnvironmentPage> {
         SizedBox(width: 6),
         Text(label, style: TextStyle(fontSize: 12)),
       ],
-    );
-  }
-}
-
-
-class EditAddressPage extends StatefulWidget {
-  final String addressLine1;
-  final String addressLine2;
-  final String city;
-  final String postcode;
-  final String country;
-
-  EditAddressPage({
-    required this.addressLine1,
-    required this.addressLine2,
-    required this.city,
-    required this.postcode,
-    required this.country,
-  });
-
-  @override
-  _EditAddressPageState createState() => _EditAddressPageState();
-}
-
-class _EditAddressPageState extends State<EditAddressPage> {
-  final _formKey = GlobalKey<FormState>();
-  late String addressLine1;
-  late String addressLine2;
-  late String city;
-  late String postcode;
-  late String country;
-
-  @override
-  void initState() {
-    super.initState();
-    addressLine1 = widget.addressLine1;
-    addressLine2 = widget.addressLine2;
-    city = widget.city;
-    postcode = widget.postcode;
-    country = widget.country;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Edit Home Address'),
-        backgroundColor: Colors.orangeAccent,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            children: [
-              TextFormField(
-                initialValue: addressLine1,
-                decoration: InputDecoration(labelText: 'Address Line 1 *'),
-                validator: (value) => value == null || value.isEmpty ? 'Required' : null,
-                onSaved: (value) => addressLine1 = value ?? '',
-              ),
-              SizedBox(height: 16),
-              TextFormField(
-                initialValue: addressLine2,
-                decoration: InputDecoration(labelText: 'Street / Block (optional)'),
-                onSaved: (value) => addressLine2 = value ?? '',
-              ),
-              SizedBox(height: 16),
-              TextFormField(
-                initialValue: city,
-                decoration: InputDecoration(labelText: 'City *'),
-                validator: (value) => value == null || value.isEmpty ? 'Required' : null,
-                onSaved: (value) => city = value ?? '',
-              ),
-              SizedBox(height: 16),
-              TextFormField(
-                initialValue: postcode,
-                decoration: InputDecoration(labelText: 'Postcode *'),
-                validator: (value) => value == null || value.isEmpty ? 'Required' : null,
-                onSaved: (value) => postcode = value ?? '',
-              ),
-              SizedBox(height: 16),
-              TextFormField(
-                initialValue: country,
-                decoration: InputDecoration(labelText: 'Country *'),
-                validator: (value) => value == null || value.isEmpty ? 'Required' : null,
-                onSaved: (value) => country = value ?? '',
-              ),
-              SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: () {
-                  if (_formKey.currentState!.validate()) {
-                    _formKey.currentState!.save();
-                    Navigator.pop(context, {
-                      'addressLine1': addressLine1,
-                      'addressLine2': addressLine2,
-                      'city': city,
-                      'postcode': postcode,
-                      'country': country,
-                    });
-                  }
-                },
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.orangeAccent),
-                child: Text('Save'),
-              )
-            ],
-          ),
-        ),
-      ),
     );
   }
 }
