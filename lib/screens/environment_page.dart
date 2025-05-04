@@ -7,7 +7,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'sensor_data_model.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geocoding/geocoding.dart';
-
+import 'package:environment_sensors/environment_sensors.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geocoding/geocoding.dart';
@@ -256,6 +256,9 @@ class _EnvironmentPageState extends State<EnvironmentPage> {
   Timer? timer;
   final random = Random();
 
+  final EnvironmentSensors _environmentSensors = EnvironmentSensors();
+  StreamSubscription<double>? _lightSubscription;
+
   bool get isAddressFilled =>
       addressLine1.isNotEmpty &&
       city.isNotEmpty &&
@@ -271,10 +274,11 @@ class _EnvironmentPageState extends State<EnvironmentPage> {
   @override
   void dispose() {
     timer?.cancel();
+    _lightSubscription?.cancel();
     super.dispose();
   }
 
-  // Load user address from Firestore
+  // Load address from Firebase and start sensor
   Future<void> _loadAddressFromFirebase() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -292,24 +296,40 @@ class _EnvironmentPageState extends State<EnvironmentPage> {
         });
 
         if (isAddressFilled) {
-          _startSimulation();
+          _startSensorListeners();
         }
       }
     }
   }
 
-  // Start generating simulated sensor data
-  void _startSimulation() {
+  // Start sensor reading with real light data
+  void _startSensorListeners() {
     timer?.cancel();
+    _lightSubscription?.cancel();
+
     SensorDataModel().startAveraging();
+
+    // Listen to real light sensor
+    _lightSubscription = _environmentSensors.light.listen((lux) {
+      setState(() {
+        light = lux;
+        _updateHistory(lightHistory, light);
+        SensorDataModel().updateSensors(
+          light: light,
+          temperature: temperature,
+          humidity: humidity,
+          pressure: pressure,
+        );
+      });
+    });
+
+    // Simulate temperature, humidity, and pressure
     timer = Timer.periodic(Duration(seconds: 1), (_) {
       setState(() {
-        light = 100 + random.nextDouble() * 900;
         temperature = 15 + random.nextDouble() * 15;
         humidity = 30 + random.nextDouble() * 70;
         pressure = 980 + random.nextDouble() * 40;
 
-        _updateHistory(lightHistory, light);
         _updateHistory(temperatureHistory, temperature);
         _updateHistory(humidityHistory, humidity);
         _updateHistory(pressureHistory, pressure);
@@ -324,7 +344,6 @@ class _EnvironmentPageState extends State<EnvironmentPage> {
     });
   }
 
-  // Update chart history buffer
   void _updateHistory(List<double> history, double value) {
     history.add(value);
     if (history.length > 60) history.removeAt(0);
@@ -346,69 +365,7 @@ class _EnvironmentPageState extends State<EnvironmentPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-Card(
-  elevation: 3,
-  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-  child: Padding(
-    padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(Icons.home, color: Colors.orangeAccent),
-        SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            'Home Address: $fullAddress',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-        ),
-        IconButton(
-          icon: Icon(Icons.edit, color: Colors.orangeAccent),
-          onPressed: () async {
-            final result = await Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => EditAddressPage(
-                  addressLine1: addressLine1,
-                  addressLine2: addressLine2,
-                  city: city,
-                  postcode: postcode,
-                  country: country,
-                ),
-              ),
-            );
-            if (result != null) {
-              setState(() {
-                addressLine1 = result['addressLine1'];
-                addressLine2 = result['addressLine2'];
-                city = result['city'];
-                postcode = result['postcode'];
-                country = result['country'];
-              });
-
-              final user = FirebaseAuth.instance.currentUser;
-              if (user != null) {
-                FirebaseFirestore.instance.collection('users').doc(user.uid).update({
-                  'addressLine1': addressLine1,
-                  'addressLine2': addressLine2,
-                  'city': city,
-                  'postcode': postcode,
-                  'country': country,
-                });
-              }
-
-              if (isAddressFilled) {
-                _startSimulation();
-              } else {
-                timer?.cancel();
-              }
-            }
-          },
-        ),
-      ],
-    ),
-  ),
-),
+            _buildAddressCard(fullAddress),
             SizedBox(height: 24),
             _buildSensorCard(Icons.wb_sunny, 'Ambient Light', light, 'lux', Colors.yellow.shade600),
             SizedBox(height: 16),
@@ -418,78 +375,65 @@ Card(
             SizedBox(height: 16),
             _buildSensorCard(Icons.speed, 'Air Pressure', pressure, 'hPa', Colors.deepPurpleAccent),
             SizedBox(height: 30),
-            Container(
-              padding: EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.show_chart, color: Colors.orangeAccent),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Sensor History (last hour / one reading per minute)',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            _buildChartLegend(),
             SizedBox(height: 12),
-            Wrap(
-              spacing: 16,
-              runSpacing: 8,
-              children: [
-                _buildLegendDot(color: Colors.yellow.shade700, label: 'Light (lux)'),
-                _buildLegendDot(color: Colors.redAccent, label: 'Temperature (°C)'),
-                _buildLegendDot(color: Colors.blueAccent, label: 'Humidity (%)'),
-                _buildLegendDot(color: Colors.deepPurpleAccent, label: 'Pressure (hPa)'),
-              ],
-            ),
-            SizedBox(height: 16),
-            SizedBox(
-              height: 220,
-              child: LineChart(
-                LineChartData(
-                  gridData: FlGridData(show: true),
-                  titlesData: FlTitlesData(show: false),
-                  borderData: FlBorderData(show: true),
-                  lineBarsData: [
-                    LineChartBarData(
-                      spots: lightHistory.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value)).toList(),
-                      isCurved: true,
-                      color: Colors.yellow.shade700,
-                      barWidth: 2,
-                      dotData: FlDotData(show: false),
-                    ),
-                    LineChartBarData(
-                      spots: temperatureHistory.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value)).toList(),
-                      isCurved: true,
-                      color: Colors.redAccent,
-                      barWidth: 2,
-                      dotData: FlDotData(show: false),
-                    ),
-                    LineChartBarData(
-                      spots: humidityHistory.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value)).toList(),
-                      isCurved: true,
-                      color: Colors.blueAccent,
-                      barWidth: 2,
-                      dotData: FlDotData(show: false),
-                    ),
-                    LineChartBarData(
-                      spots: pressureHistory.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value)).toList(),
-                      isCurved: true,
-                      color: Colors.deepPurpleAccent,
-                      barWidth: 2,
-                      dotData: FlDotData(show: false),
-                    ),
-                  ],
-                ),
+            _buildChart(),
+            SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAddressCard(String fullAddress) {
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.home, color: Colors.orangeAccent),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Home Address: $fullAddress',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),
-            SizedBox(height: 20),
+            IconButton(
+              icon: Icon(Icons.edit, color: Colors.orangeAccent),
+              onPressed: () async {
+                final result = await Navigator.pushNamed(context, '/editAddress');
+                if (result != null && result is Map) {
+                  setState(() {
+                    addressLine1 = result['addressLine1'];
+                    addressLine2 = result['addressLine2'];
+                    city = result['city'];
+                    postcode = result['postcode'];
+                    country = result['country'];
+                  });
+
+                  final user = FirebaseAuth.instance.currentUser;
+                  if (user != null) {
+                    FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+                      'addressLine1': addressLine1,
+                      'addressLine2': addressLine2,
+                      'city': city,
+                      'postcode': postcode,
+                      'country': country,
+                    });
+                  }
+
+                  if (isAddressFilled) {
+                    _startSensorListeners();
+                  } else {
+                    timer?.cancel();
+                  }
+                }
+              },
+            ),
           ],
         ),
       ),
@@ -526,14 +470,68 @@ Card(
     );
   }
 
-  Widget _buildLegendDot({required Color color, required String label}) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(width: 12, height: 12, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
-        SizedBox(width: 6),
-        Text(label, style: TextStyle(fontSize: 12)),
-      ],
+  Widget _buildChartLegend() {
+    return Container(
+      padding: EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.show_chart, color: Colors.orangeAccent),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Sensor History (last hour / one reading per minute)',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChart() {
+    return SizedBox(
+      height: 220,
+      child: LineChart(
+        LineChartData(
+          gridData: FlGridData(show: true),
+          titlesData: FlTitlesData(show: false),
+          borderData: FlBorderData(show: true),
+          lineBarsData: [
+            LineChartBarData(
+              spots: lightHistory.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value)).toList(),
+              isCurved: true,
+              color: Colors.yellow.shade700,
+              barWidth: 2,
+              dotData: FlDotData(show: false),
+            ),
+            LineChartBarData(
+              spots: temperatureHistory.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value)).toList(),
+              isCurved: true,
+              color: Colors.redAccent,
+              barWidth: 2,
+              dotData: FlDotData(show: false),
+            ),
+            LineChartBarData(
+              spots: humidityHistory.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value)).toList(),
+              isCurved: true,
+              color: Colors.blueAccent,
+              barWidth: 2,
+              dotData: FlDotData(show: false),
+            ),
+            LineChartBarData(
+              spots: pressureHistory.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value)).toList(),
+              isCurved: true,
+              color: Colors.deepPurpleAccent,
+              barWidth: 2,
+              dotData: FlDotData(show: false),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
