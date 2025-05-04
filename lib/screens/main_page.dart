@@ -48,12 +48,7 @@ class _MainPageState extends State<MainPage> {
         },
       ),
       EnvironmentPage(),
-      DevicesPage(
-        devices: devices,
-        onAddDevice: _addDevice,
-        onRemoveDevice: _removeDevice,
-        onToggleDeviceStatus: _toggleDeviceStatus,
-      ),
+      DevicesPage(),
       EnergyHubPage(devices: devices),
     ];
 

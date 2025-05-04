@@ -346,62 +346,69 @@ class _EnvironmentPageState extends State<EnvironmentPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(Icons.home, color: Colors.orangeAccent),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Home Address: $fullAddress',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
+Card(
+  elevation: 3,
+  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+  child: Padding(
+    padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(Icons.home, color: Colors.orangeAccent),
+        SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            'Home Address: $fullAddress',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+        ),
+        IconButton(
+          icon: Icon(Icons.edit, color: Colors.orangeAccent),
+          onPressed: () async {
+            final result = await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => EditAddressPage(
+                  addressLine1: addressLine1,
+                  addressLine2: addressLine2,
+                  city: city,
+                  postcode: postcode,
+                  country: country,
                 ),
-                IconButton(
-                  icon: Icon(Icons.edit, color: Colors.orangeAccent),
-                  onPressed: () async {
-                    final result = await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => EditAddressPage(
-                          addressLine1: addressLine1,
-                          addressLine2: addressLine2,
-                          city: city,
-                          postcode: postcode,
-                          country: country,
-                        ),
-                      ),
-                    );
-                    if (result != null) {
-                      setState(() {
-                        addressLine1 = result['addressLine1'];
-                        addressLine2 = result['addressLine2'];
-                        city = result['city'];
-                        postcode = result['postcode'];
-                        country = result['country'];
-                      });
+              ),
+            );
+            if (result != null) {
+              setState(() {
+                addressLine1 = result['addressLine1'];
+                addressLine2 = result['addressLine2'];
+                city = result['city'];
+                postcode = result['postcode'];
+                country = result['country'];
+              });
 
-                      final user = FirebaseAuth.instance.currentUser;
-                      if (user != null) {
-                        FirebaseFirestore.instance.collection('users').doc(user.uid).update({
-                          'addressLine1': addressLine1,
-                          'addressLine2': addressLine2,
-                          'city': city,
-                          'postcode': postcode,
-                          'country': country,
-                        });
-                      }
+              final user = FirebaseAuth.instance.currentUser;
+              if (user != null) {
+                FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+                  'addressLine1': addressLine1,
+                  'addressLine2': addressLine2,
+                  'city': city,
+                  'postcode': postcode,
+                  'country': country,
+                });
+              }
 
-                      if (isAddressFilled) {
-                        _startSimulation();
-                      } else {
-                        timer?.cancel();
-                      }
-                    }
-                  },
-                ),
-              ],
-            ),
+              if (isAddressFilled) {
+                _startSimulation();
+              } else {
+                timer?.cancel();
+              }
+            }
+          },
+        ),
+      ],
+    ),
+  ),
+),
             SizedBox(height: 24),
             _buildSensorCard(Icons.wb_sunny, 'Ambient Light', light, 'lux', Colors.yellow.shade600),
             SizedBox(height: 16),

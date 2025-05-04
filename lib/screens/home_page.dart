@@ -9,7 +9,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
 import 'package:fl_chart/fl_chart.dart';
-
+import 'devices_page.dart';
 import 'top_up_page.dart';
 import 'sensor_data_model.dart';
 
@@ -517,13 +517,31 @@ Widget build(BuildContext context) {
             children: [
               _buildLocationSection(),
               _buildMapSection(),
+              
               _buildBalanceCard(),
               SizedBox(height: 24),
               _buildWeatherSection(),
               SizedBox(height: 24),
               _buildSensorCard(model),
               SizedBox(height: 24),
-              _buildDevicesCard(totalDevices, onlineDevices),
+       StreamBuilder<QuerySnapshot>(
+  stream: FirebaseFirestore.instance
+      .collection('devices')
+      .where('ownerId', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
+      .snapshots(),
+  builder: (context, snapshot) {
+    if (!snapshot.hasData) {
+      return _buildDeviceCard(0, 0);
+    }
+
+    final docs = snapshot.data!.docs;
+    final totalDevices = docs.length;
+    final onlineDevices = docs.where((doc) => doc['isOnline'] == true).length;
+
+    return _buildDeviceCard(totalDevices, onlineDevices);
+  },
+),
+
             ],
           ),
         );
@@ -661,35 +679,50 @@ Widget build(BuildContext context) {
     );
   }
 
-  Widget _buildDevicesCard(int totalDevices, int onlineDevices) {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: 4,
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Your Devices:', style: TextStyle(fontSize: 18, color: Colors.grey[700])),
-            SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+
+  
+
+ Widget _buildDeviceCard(int total, int online) {
+  return Card(
+    elevation: 4,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Icon(Icons.devices, size: 40, color: Colors.blueAccent),
+          SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Total: $totalDevices', style: TextStyle(fontSize: 16)),
-                Text('Online: $onlineDevices', style: TextStyle(fontSize: 16, color: Colors.green)),
+                Text('Connected Devices', style: TextStyle(fontSize: 16, color: Colors.grey[700])),
+                SizedBox(height: 4),
+                Text('$online / $total Online',
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
               ],
             ),
-            SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: widget.onViewDevices,
-              child: Text('View Devices'),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.orangeAccent),
-            )
-          ],
-        ),
+          ),
+          SizedBox(width: 8),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => DevicesPage()),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orangeAccent,
+            ),
+            child: Text('View'),
+          )
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
+
 
   Widget _buildSensorRow(IconData icon, String label, double? value, String unit) {
     return Padding(

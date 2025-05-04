@@ -1,5 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'dart:convert';
+
+
 
 final uuid = Uuid();
 
@@ -37,198 +44,353 @@ final Map<String, IconData> deviceIcons = {
 };
 
 class DevicesPage extends StatefulWidget {
-  final List<Map<String, dynamic>> devices;
-  final void Function(Map<String, dynamic>) onAddDevice;
-  final void Function(String) onRemoveDevice;
-  final void Function(String) onToggleDeviceStatus;
-
-  DevicesPage({
-    required this.devices,
-    required this.onAddDevice,
-    required this.onRemoveDevice,
-    required this.onToggleDeviceStatus,
-  });
-
   @override
   _DevicesPageState createState() => _DevicesPageState();
 }
 
 class _DevicesPageState extends State<DevicesPage> {
-  Set<String> addedNames = {};
   List<String> allDeviceNames = List<String>.from(deviceIcons.keys);
 
-  @override
-  void initState() {
-    super.initState();
-    addedNames = widget.devices.map((d) => d['name'] as String).toSet();
+  Future<void> _addDevice(String name) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final id = uuid.v4();
+    final newDevice = {
+      'id': id,
+      'name': name,
+      'isOnline': false,
+      'createdAt': FieldValue.serverTimestamp(),
+      'ownerId': user.uid, // Bind device to user
+    };
+
+    await FirebaseFirestore.instance.collection('devices').doc(id).set(newDevice);
   }
 
-  void _promptAddCustomDevice(BuildContext context) {
-    String customName = '';
-    showDialog(
+  Future<void> _removeDevice(String id) async {
+    await FirebaseFirestore.instance.collection('devices').doc(id).delete();
+  }
+
+  Future<void> _toggleDeviceStatus(String id, bool newStatus) async {
+    await FirebaseFirestore.instance.collection('devices').doc(id).update({'isOnline': newStatus});
+  }
+
+
+  //bluetooth connection
+ Future<void> _scanAndConnectBluetoothDevice() async {
+  await Permission.bluetoothScan.request();
+  await Permission.bluetoothConnect.request();
+  await Permission.location.request();
+
+  FlutterBluePlus.startScan(timeout: Duration(seconds: 6));
+
+  FlutterBluePlus.scanResults.listen((results) async {
+    for (ScanResult result in results) {
+      final device = result.device;
+      if (device.name.contains("ESP32")) {
+        FlutterBluePlus.stopScan();
+        await _connectAndRegister(device);
+        break;
+      }
+    }
+  });
+}
+
+
+Future<void> _connectAndRegister(BluetoothDevice device) async {
+  try {
+    // Step 1: rename the device
+    final customNameController = TextEditingController();
+    final customName = await showDialog<String>(
       context: context,
-      builder: (_) {
+      builder: (context) {
         return AlertDialog(
-          title: Text('Add Custom Device'),
+          title: Text('Name your device'),
           content: TextField(
-            autofocus: true,
-            decoration: InputDecoration(hintText: 'Enter device name'),
-            onChanged: (value) => customName = value.trim(),
+            controller: customNameController,
+            decoration: InputDecoration(hintText: 'e.g. Smart Plug'),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel')),
+            TextButton(
+              onPressed: () => Navigator.pop(context, null),
+              child: Text('Cancel'),
+            ),
             ElevatedButton(
               onPressed: () {
-                if (customName.isEmpty) return;
-                if (allDeviceNames.contains(customName)) {
-                  showDialog(
-                    context: context,
-                    builder: (_) => AlertDialog(
-                      title: Text('Duplicate Device'),
-                      content: Text('Device "$customName" already exists.'),
-                      actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text('OK'))],
-                    ),
-                  );
-                  return;
+                final name = customNameController.text.trim();
+                if (name.isNotEmpty) {
+                  Navigator.pop(context, name);
                 }
-                setState(() {
-                  deviceIcons[customName] = Icons.device_unknown;
-                  allDeviceNames.add(customName);
-                  final newDevice = {
-                    'name': customName,
-                    'id': uuid.v4(),
-                    'isOnline': false,
-                  };
-                  widget.onAddDevice(newDevice);
-                  addedNames.add(customName);
-                });
-                Navigator.pop(context);
-                showDialog(
-                  context: context,
-                  builder: (_) => AlertDialog(
-                    title: Text('Success'),
-                    content: Text('"$customName" added successfully!'),
-                    actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text('OK'))],
-                  ),
-                );
               },
-              child: Text('Add'),
+              child: Text('Confirm'),
             ),
           ],
         );
       },
     );
+
+    if (customName == null || customName.isEmpty) return; 
+
+    // Step 2: BLE connection
+    await device.connect(autoConnect: false);
+    List<BluetoothService> services = await device.discoverServices();
+
+    final targetService = services.firstWhere(
+      (s) => s.uuid.toString().toLowerCase().contains("12345678"),
+      orElse: () => throw Exception("Target service not found"),
+    );
+
+    final targetChar = targetService.characteristics.firstWhere(
+      (c) => c.uuid.toString().toLowerCase().contains("abcd1234"),
+      orElse: () => throw Exception("Target characteristic not found"),
+    );
+
+    // Step 3: generate Firebase document ID and write in
+    final docRef = FirebaseFirestore.instance.collection('devices').doc();
+    final deviceId = docRef.id;
+
+    final payload = '$deviceId::$customName';
+    await targetChar.write(utf8.encode(payload));
+    await Future.delayed(Duration(milliseconds: 300));
+
+    final currentUser = FirebaseAuth.instance.currentUser;
+    await docRef.set({
+      'id': deviceId,
+      'name': customName,
+      'ownerId': currentUser?.uid,
+      'btAddress': device.id.id,
+      'type': 'bluetooth',
+      'isOnline': true,
+    });
+
+    await device.disconnect();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('✅ Device "$customName" added successfully')),
+    );
+  } catch (e) {
+    print("Error in connectAndRegister: $e");
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('❌ Failed to add device: $e')),
+    );
   }
+}
+
+
+
+// bluetooth connection area bottom
 
   void _confirmClearAll() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Clear All Devices'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Are you sure you want to remove all devices?'),
-            SizedBox(height: 12),
-            Text('This action cannot be undone.', style: TextStyle(fontSize: 13, color: Colors.grey[700])),
-          ],
-        ),
+        content: Text('Are you sure you want to remove all your devices?'),
         actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel')),
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              for (var device in List.from(widget.devices)) {
-                widget.onRemoveDevice(device['id']);
+            onPressed: () async {
+              final uid = FirebaseAuth.instance.currentUser?.uid;
+              final snapshot = await FirebaseFirestore.instance
+                  .collection('devices')
+                  .where('ownerId', isEqualTo: uid)
+                  .get();
+              for (var doc in snapshot.docs) {
+                await doc.reference.delete();
               }
-              setState(() {
-                addedNames.clear();
-              });
               Navigator.pop(context);
             },
             child: Text('Confirm'),
-          )
+          ),
         ],
       ),
     );
   }
 
+void _promptAddCustomDevice(BuildContext context) {
+  showDialog(
+    context: context,
+    builder: (_) => AlertDialog(
+      title: Text('Choose Connection Type'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            leading: Icon(Icons.bluetooth),
+            title: Text('Bluetooth'),
+            onTap: () {
+              Navigator.pop(context); // close dialog
+              _showBluetoothDeviceList(); // show available devices
+            },
+          ),
+          ListTile(
+            leading: Icon(Icons.wifi),
+            title: Text('Wi-Fi'),
+            onTap: () {
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Wi-Fi support coming soon')),
+              );
+            },
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+void _showBluetoothDeviceList() async {
+ 
+  await Permission.bluetoothScan.request();
+  await Permission.bluetoothConnect.request();
+  await Permission.location.request();
+
+
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => AlertDialog(
+      content: Row(
+        children: [
+          CircularProgressIndicator(),
+          SizedBox(width: 16),
+          Expanded(child: Text("Scanning for Bluetooth devices...")),
+        ],
+      ),
+    ),
+  );
+
+ 
+  FlutterBluePlus.startScan(timeout: Duration(seconds: 3));
+  await Future.delayed(Duration(seconds: 3));
+  FlutterBluePlus.stopScan();
+  Navigator.pop(context); 
+
+
+  List<ScanResult> results = await FlutterBluePlus.scanResults.first;
+
+
+  final filtered = results.where((r) =>
+    r.advertisementData.localName.isNotEmpty || r.device.name.isNotEmpty
+  ).toList();
+
+
+  for (ScanResult r in results) {
+    print("Found device:");
+    print(" - name: ${r.device.name}");
+    print(" - localName: ${r.advertisementData.localName}");
+    print(" - id: ${r.device.id.id}");
+  }
+
+
+  if (filtered.isEmpty) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text('No devices found'),
+        content: Text('Make sure your ESP32 is powered and advertising.'),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text('OK'))],
+      ),
+    );
+    return;
+  }
+
+
+  showDialog(
+    context: context,
+    builder: (_) => AlertDialog(
+      title: Text('Select a Bluetooth Device'),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: ListView.builder(
+          shrinkWrap: true,
+          itemCount: filtered.length,
+          itemBuilder: (_, index) {
+            final result = filtered[index];
+            final device = result.device;
+            final name = result.advertisementData.localName.isNotEmpty
+              ? result.advertisementData.localName
+              : device.name;
+
+            return ListTile(
+              title: Text(name),
+              subtitle: Text(device.id.id),
+              onTap: () {
+                Navigator.pop(context); 
+                _connectAndRegister(device); 
+              },
+            );
+          },
+        ),
+      ),
+    ),
+  );
+}
+
+
   void _openDeviceDrawer(BuildContext context) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (_) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            return DraggableScrollableSheet(
-              expand: false,
-              builder: (_, controller) {
-                return Column(
-                  children: [
-                    Expanded(
-                      child: ListView.builder(
-                        controller: controller,
-                        itemCount: allDeviceNames.length + 1,
-                        itemBuilder: (_, index) {
-                          if (index < allDeviceNames.length) {
-                            final name = allDeviceNames[index];
-                            final alreadyAdded = addedNames.contains(name);
-                            return ListTile(
-                              leading: Icon(deviceIcons[name] ?? Icons.devices_other),
-                              title: Text(name),
-                              trailing: ElevatedButton(
-                                onPressed: alreadyAdded
-                                    ? null
-                                    : () {
-                                        final newDevice = {
-                                          'name': name,
-                                          'id': uuid.v4(),
-                                          'isOnline': false,
-                                        };
-                                        widget.onAddDevice(newDevice);
-                                        setModalState(() {
-                                          addedNames.add(name);
-                                        });
-                                        setState(() {
-                                          addedNames.add(name);
-                                        });
-                                      },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: alreadyAdded ? Colors.grey : Colors.orangeAccent,
+      builder: (_) => DraggableScrollableSheet(
+        expand: false,
+        builder: (_, controller) {
+          return Column(
+            children: [
+              Expanded(
+                child: StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('devices')
+                      .where('ownerId', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    final addedNames = snapshot.hasData
+                        ? snapshot.data!.docs.map((doc) => doc['name'] as String).toSet()
+                        : <String>{};
+                    return ListView.builder(
+                      controller: controller,
+                      itemCount: allDeviceNames.length + 1,
+                      itemBuilder: (_, index) {
+                        if (index < allDeviceNames.length) {
+                          final name = allDeviceNames[index];
+                          final alreadyAdded = addedNames.contains(name);
+                          return ListTile(
+                            leading: Icon(deviceIcons[name] ?? Icons.devices_other),
+                            title: Text(name),
+                            trailing: ElevatedButton(
+                              onPressed: alreadyAdded ? null : () async => await _addDevice(name),
+                              style: ElevatedButton.styleFrom(
+                                  backgroundColor: alreadyAdded ? Colors.grey : Colors.orangeAccent),
+                              child: Text(alreadyAdded ? 'Added' : 'Add'),
+                            ),
+                          );
+                        } else {
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24),
+                            child: Column(
+                              children: [
+                                Divider(),
+                                Text('Not found your device?'),
+                                SizedBox(height: 12),
+                                ElevatedButton.icon(
+                                  onPressed: () => _promptAddCustomDevice(context),
+                                  icon: Icon(Icons.add),
+                                  label: Text('Add Custom Device'),
+                                  style: ElevatedButton.styleFrom(backgroundColor: Colors.orangeAccent),
                                 ),
-                                child: Text(alreadyAdded ? 'Added' : 'Add'),
-                              ),
-                            );
-                          } else {
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24),
-                              child: Column(
-                                children: [
-                                  Divider(),
-                                  Text('Not found your device?', style: TextStyle(fontSize: 16, color: Colors.grey[700])),
-                                  SizedBox(height: 12),
-                                  ElevatedButton.icon(
-                                    onPressed: () => _promptAddCustomDevice(context),
-                                    icon: Icon(Icons.add),
-                                    label: Text('Add Custom Device'),
-                                    style: ElevatedButton.styleFrom(backgroundColor: Colors.orangeAccent),
-                                  ),
-                                ],
-                              ),
-                            );
-                          }
-                        },
-                      ),
-                    ),
-                  ],
-                );
-              },
-            );
-          },
-        );
-      },
+                              ],
+                            ),
+                          );
+                        }
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 
@@ -246,83 +408,98 @@ class _DevicesPageState extends State<DevicesPage> {
           ),
         ],
       ),
-      body: widget.devices.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.devices_other, size: 80, color: Colors.grey),
-                  SizedBox(height: 20),
-                  Text('No devices yet', style: TextStyle(fontSize: 20, color: Colors.grey)),
-                ],
-              ),
-            )
-          : ListView.builder(
-              itemCount: widget.devices.length,
-              itemBuilder: (_, index) {
-                final device = widget.devices[index];
-                return Card(
-                  margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  child: ListTile(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => DeviceDetailPage(
-                            device: device,
-                            onDelete: () => widget.onRemoveDevice(device['id']),
-                            onToggleStatus: () => widget.onToggleDeviceStatus(device['id']),
-                          ),
-                        ),
-                      );
-                    },
-                    leading: Icon(deviceIcons[device['name']] ?? Icons.devices_other, color: Colors.blueAccent),
-                    title: Text(device['name']),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('ID: ${device['id']}'),
-                        SizedBox(height: 4),
-                        Row(
-                          children: [
-                            Icon(Icons.circle, size: 10, color: device['isOnline'] ? Colors.green : Colors.grey),
-                            SizedBox(width: 6),
-                            Text(
-                              device['isOnline'] ? 'Online' : 'Offline',
-                              style: TextStyle(fontSize: 14, color: device['isOnline'] ? Colors.green : Colors.grey),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    trailing: Icon(Icons.chevron_right),
-                  ),
-                );
-              },
-            ),
-      floatingActionButton: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          FloatingActionButton(
-            onPressed: () => _openDeviceDrawer(context),
-            backgroundColor: Colors.orangeAccent,
-            child: Icon(Icons.add),
-          ),
-          SizedBox(height: 8),
-          Text('Add Device', style: TextStyle(fontSize: 12, color: Colors.grey)),
-        ],
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('devices')
+            .where('ownerId', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
+          final devices = snapshot.data!.docs;
+          if (devices.isEmpty) {
+            return Center(
+  child: Column(
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: [
+      Icon(Icons.devices_other, size: 100, color: Colors.grey.shade400),
+      SizedBox(height: 20),
+      Text(
+        'No Devices Added',
+        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.grey[700]),
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      SizedBox(height: 12),
+      Text(
+        'You haven\'t added any devices yet.\nTap the "+" button to get started.',
+        textAlign: TextAlign.center,
+        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+      ),
+      SizedBox(height: 24),
+    ],
+  ),
+);
+
+          }
+          return ListView.builder(
+            itemCount: devices.length,
+            itemBuilder: (_, index) {
+              final device = devices[index].data() as Map<String, dynamic>;
+              final id = devices[index].id;
+              return Card(
+                margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                child: ListTile(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => DeviceDetailPage(
+  device: device,
+  onDelete: () => _removeDevice(id),
+  onToggleStatus: (bool newStatus) => _toggleDeviceStatus(id, newStatus),
+),
+
+                      ),
+                    );
+                  },
+                  leading: Icon(deviceIcons[device['name']] ?? Icons.devices_other, color: Colors.blueAccent),
+                  title: Text(device['name']),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('ID: ${device['id']}'),
+                      SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(Icons.circle, size: 10, color: device['isOnline'] ? Colors.green : Colors.grey),
+                          SizedBox(width: 6),
+                          Text(
+                            device['isOnline'] ? 'Online' : 'Offline',
+                            style: TextStyle(fontSize: 14, color: device['isOnline'] ? Colors.green : Colors.grey),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  trailing: Icon(Icons.chevron_right),
+                ),
+              );
+            },
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _openDeviceDrawer(context),
+        backgroundColor: Colors.orangeAccent,
+        child: Icon(Icons.add),
+      ),
     );
   }
 }
 
-
 class DeviceDetailPage extends StatefulWidget {
   final Map<String, dynamic> device;
   final VoidCallback onDelete;
-  final VoidCallback onToggleStatus;
+  final Future<void> Function(bool newStatus) onToggleStatus;
 
   DeviceDetailPage({
     required this.device,
@@ -340,42 +517,40 @@ class _DeviceDetailPageState extends State<DeviceDetailPage> {
   @override
   void initState() {
     super.initState();
-    isOnline = widget.device['isOnline'];
+    isOnline = widget.device['isOnline'] ?? false;
   }
 
-  void _toggleStatus() {
-    widget.onToggleStatus();
-    setState(() {
-      isOnline = !isOnline;
-    });
-  }
+  Future<void> _handleToggle() async {
+  final newStatus = !isOnline;
+  setState(() {
+    isOnline = newStatus;
+  });
 
-  void _confirmDelete() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Confirm Deletion'),
-        content: Text('Are you sure you want to remove this device?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              widget.onDelete();
-              Navigator.pop(context); // Close dialog
-              Navigator.pop(context); // Exit page
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Device removed successfully')),
-              );
-            },
-            child: Text('Delete'),
-          )
+  await widget.onToggleStatus(newStatus);
+
+  
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => AlertDialog(
+      content: Row(
+        children: [
+          CircularProgressIndicator(),
+          SizedBox(width: 16),
+          Text("Applying changes..."),
         ],
       ),
-    );
+    ),
+  );
+
+  await Future.delayed(Duration(seconds: 1));
+
+  if (mounted) {
+    Navigator.pop(context); 
+    Navigator.pop(context); 
   }
+}
+
 
   @override
   Widget build(BuildContext context) {
@@ -400,10 +575,7 @@ class _DeviceDetailPageState extends State<DeviceDetailPage> {
               children: [
                 Icon(Icons.circle, size: 16, color: isOnline ? Colors.green : Colors.grey),
                 SizedBox(width: 8),
-                Text(
-                  isOnline ? 'Online' : 'Offline',
-                  style: TextStyle(fontSize: 20),
-                ),
+                Text(isOnline ? 'Online' : 'Offline', style: TextStyle(fontSize: 20)),
               ],
             ),
             SizedBox(height: 30),
@@ -412,7 +584,7 @@ class _DeviceDetailPageState extends State<DeviceDetailPage> {
             SelectableText(widget.device['id'], style: TextStyle(fontSize: 16)),
             SizedBox(height: 40),
             ElevatedButton.icon(
-              onPressed: _toggleStatus,
+              onPressed: _handleToggle,
               icon: Icon(Icons.power_settings_new),
               label: Text(isOnline ? 'Turn OFF' : 'Turn ON'),
               style: ElevatedButton.styleFrom(
@@ -421,7 +593,10 @@ class _DeviceDetailPageState extends State<DeviceDetailPage> {
             ),
             SizedBox(height: 20),
             ElevatedButton.icon(
-              onPressed: _confirmDelete,
+              onPressed: () {
+                widget.onDelete();
+                Navigator.pop(context);
+              },
               icon: Icon(Icons.delete),
               label: Text('Remove Device'),
               style: ElevatedButton.styleFrom(backgroundColor: Colors.grey),
