@@ -11,10 +11,10 @@ import 'dart:convert';
 final uuid = Uuid();
 
 final Map<String, IconData> deviceIcons = {
-  'Smart Fridge': Icons.kitchen,
-  'Air Conditioner': Icons.ac_unit,
-  'Washing Machine': Icons.local_laundry_service,
-  'Heater': Icons.whatshot,
+  'Smart Fridge (RED LED)': Icons.kitchen,
+  'Air Conditioner (GREEN LED)': Icons.ac_unit,
+  'Washing Machine (YELLOW LED)': Icons.local_laundry_service,
+  'Heater' : Icons.whatshot,
   'Smart TV': Icons.tv,
   'Microwave Oven': Icons.microwave,
   'Water Heater': Icons.hot_tub,
@@ -50,22 +50,56 @@ class DevicesPage extends StatefulWidget {
 
 class _DevicesPageState extends State<DevicesPage> {
   List<String> allDeviceNames = List<String>.from(deviceIcons.keys);
+  final Map<String, String> fixedDeviceIds = {
+  'Smart Fridge (RED LED)': '000000',
+  'Air Conditioner (GREEN LED)': '000001',
+  'Washing Machine (YELLOW LED)': '000010',
+  'Heater': '000011',
+  'Smart TV': '000100',
+  'Microwave Oven': '000101',
+  'Water Heater': '000110',
+  'LED Lighting': '000111',
+  'WiFi Router': '001000',
+  'Smart Speaker': '001001',
+  'Laptop Charger': '001010',
+  'Electric Kettle': '001011',
+  'Robot Vacuum': '001100',
+  'Dishwasher': '001101',
+  'Coffee Maker': '001110',
+  'Oven': '001111',
+  'Hair Dryer': '010000',
+  'Gaming Console': '010001',
+  'Security Camera': '010010',
+  'Smart Plug': '010011',
+  'Ceiling Fan': '010100',
+  'Door Sensor': '010101',
+  'Window Sensor': '010110',
+  'Motion Detector': '010111',
+  'Smart Doorbell': '011000',
+  'Garage Opener': '011001',
+  'Water Leak Sensor': '011010',
+  'Air Purifier': '011011',
+  'Baby Monitor': '011100',
+  'Smart Thermostat': '011101',
+};
 
-  Future<void> _addDevice(String name) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+Future<void> _addDevice(String name) async {
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) return;
 
-    final id = uuid.v4();
-    final newDevice = {
-      'id': id,
-      'name': name,
-      'isOnline': false,
-      'createdAt': FieldValue.serverTimestamp(),
-      'ownerId': user.uid, // Bind device to user
-    };
+  final id = fixedDeviceIds[name] ?? uuid.v4(); // use fixed ID 
 
-    await FirebaseFirestore.instance.collection('devices').doc(id).set(newDevice);
-  }
+  final newDevice = {
+    'id': id,
+    'name': name,
+    'isOnline': false,
+    'createdAt': FieldValue.serverTimestamp(),
+    'ownerId': user.uid,
+  };
+
+  await FirebaseFirestore.instance.collection('devices').doc(id).set(newDevice);
+}
+
 
   Future<void> _removeDevice(String id) async {
     await FirebaseFirestore.instance.collection('devices').doc(id).delete();
@@ -99,7 +133,7 @@ class _DevicesPageState extends State<DevicesPage> {
 
 Future<void> _connectAndRegister(BluetoothDevice device) async {
   try {
-    // Step 1: rename the device
+    // Step 1: ask for custom name
     final customNameController = TextEditingController();
     final customName = await showDialog<String>(
       context: context,
@@ -129,9 +163,24 @@ Future<void> _connectAndRegister(BluetoothDevice device) async {
       },
     );
 
-    if (customName == null || customName.isEmpty) return; 
+    if (customName == null || customName.isEmpty) return;
 
-    // Step 2: BLE connection
+    // Step 2: show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 16),
+            Expanded(child: Text("Registering device...")),
+          ],
+        ),
+      ),
+    );
+
+    // Step 3: BLE connect
     await device.connect(autoConnect: false);
     List<BluetoothService> services = await device.discoverServices();
 
@@ -145,10 +194,9 @@ Future<void> _connectAndRegister(BluetoothDevice device) async {
       orElse: () => throw Exception("Target characteristic not found"),
     );
 
-    // Step 3: generate Firebase document ID and write in
+    // Step 4: generate ID and send to ESP32
     final docRef = FirebaseFirestore.instance.collection('devices').doc();
     final deviceId = docRef.id;
-
     final payload = '$deviceId::$customName';
     await targetChar.write(utf8.encode(payload));
     await Future.delayed(Duration(milliseconds: 300));
@@ -165,16 +213,25 @@ Future<void> _connectAndRegister(BluetoothDevice device) async {
 
     await device.disconnect();
 
+        // Step 5: close loading and show snackbar
+    if (Navigator.canPop(context)) Navigator.pop(context); // Close loading
+    if (Navigator.canPop(context)) Navigator.pop(context); // Close drawer
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('✅ Device "$customName" added successfully')),
     );
+
+    setState(() {}); // Optional: refresh UI
+
   } catch (e) {
+    if (Navigator.canPop(context)) Navigator.pop(context); // close loading
     print("Error in connectAndRegister: $e");
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('❌ Failed to add device: $e')),
     );
   }
 }
+
 
 
 

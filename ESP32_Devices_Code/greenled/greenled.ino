@@ -8,7 +8,7 @@ const char* WIFI_PASSWORD = "UaAxhKazjqbN";
 const char* FIREBASE_API_KEY = "AIzaSyDenddHJArtBE-VPg4nyoSnzvpyZBnD6pY";
 const char* USER_EMAIL = "dengziyang84@gmail.com";
 const char* USER_PASSWORD = "123456";
-const char* DEVICE_ID = "VXMgNG9dzf3dglcOw3mf";
+const char* DEVICE_ID = "000001";
 
 const int LED_PIN = 4;
 
