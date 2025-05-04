@@ -5,8 +5,26 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:app_settings/app_settings.dart';
+import 'dart:io';
+import 'package:android_intent_plus/android_intent.dart';
+import 'package:android_intent_plus/flag.dart';
 
 
+
+void openWiFiSettings() {
+  if (Platform.isAndroid) {
+    final intent = AndroidIntent(
+      action: 'android.settings.WIFI_SETTINGS',
+      flags: <int>[Flag.FLAG_ACTIVITY_NEW_TASK],
+    );
+    intent.launch();
+  } else {
+    // Optional: handle iOS case
+    print("iOS does not support direct Wi-Fi intent");
+  }
+}
 
 final uuid = Uuid();
 
@@ -280,21 +298,239 @@ void _promptAddCustomDevice(BuildContext context) {
               _showBluetoothDeviceList(); // show available devices
             },
           ),
-          ListTile(
-            leading: Icon(Icons.wifi),
-            title: Text('Wi-Fi'),
-            onTap: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Wi-Fi support coming soon')),
-              );
+         ListTile(
+  leading: Icon(Icons.wifi),
+  title: Text('Wi-Fi'),
+  onTap: () async {
+    Navigator.pop(context);
+
+    // 1.wifi connection to the arduino nano esp32 device
+
+await showDialog(
+  context: context,
+  builder: (_) => AlertDialog(
+    title: Text('Connect to Devices              via Wi-Fi'),
+    content: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Please go to system Wi-Fi settings and connect to the network with your device hotspot name, e.g."Arduino_Nano_ESP32", then return.',
+        ),
+        SizedBox(height: 12),
+        Text(
+          '⚠️ Otherwise, the connection will fail.',
+          style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+        ),
+      ],
+    ),
+   actions: [
+ TextButton(
+  onPressed: () => openWiFiSettings(),
+  child: Text('Go to Wi-Fi Settings'),
+),
+  TextButton(
+    onPressed: () => Navigator.pop(context),
+    child: Text('OK'),
+  ),
+],
+
+  ),
+);
+
+
+    // 2. rename the device
+    final nameController = TextEditingController();
+    final customName = await showDialog<String>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text('Name your device'),
+        content: TextField(
+          controller: nameController,
+          decoration: InputDecoration(hintText: 'e.g. Smart Plug'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, null), child: Text('Cancel')),
+          ElevatedButton(
+            onPressed: () {
+              final name = nameController.text.trim();
+              if (name.isNotEmpty) Navigator.pop(context, name);
             },
+            child: Text('Confirm'),
           ),
+        ],
+      ),
+    );
+
+    if (customName == null || customName.isEmpty) return;
+
+    // 3. sned request to Arduino NANO ESP32
+    final response = await http.post(
+      Uri.parse('http://192.168.4.1/register'),
+      body: {'name': customName},
+    );
+
+    if (response.statusCode == 200) {
+      // 4. ADD this device to Firebase
+      final user = FirebaseAuth.instance.currentUser;
+      final deviceId = uuid.v4();
+      await FirebaseFirestore.instance.collection('devices').doc(deviceId).set({
+        'id': deviceId,
+        'name': customName,
+        'ownerId': user?.uid,
+        'type': 'wifi',
+        'isOnline': true,
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('✅ Device "$customName" added')));
+      setState(() {});
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('❌ Failed to register device')));
+    }
+  },
+),
+
         ],
       ),
     ),
   );
 }
+
+void _showWifiDeviceList() async {
+  // Step 1: Show scanning dialog
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => AlertDialog(
+      content: Row(
+        children: [
+          CircularProgressIndicator(),
+          SizedBox(width: 16),
+          Expanded(child: Text("Scanning for Wi-Fi devices...")),
+        ],
+      ),
+    ),
+  );
+
+  // Step 2: Wait a moment to simulate scanning
+  await Future.delayed(Duration(seconds: 2));
+  Navigator.pop(context); // Close scanning dialog
+
+  // Step 3: Simulated Wi-Fi device list
+  final wifiDevices = [
+    {'ssid': 'ESP32_SETUP_001', 'ip': '192.168.4.1'},
+    {'ssid': 'ESP32_SETUP_002', 'ip': '192.168.4.1'}, // static IP
+  ];
+
+  // Step 4: Show device selection list
+  showDialog(
+    context: context,
+    builder: (_) => AlertDialog(
+      title: Text('Select a Wi-Fi Device'),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: ListView.builder(
+          shrinkWrap: true,
+          itemCount: wifiDevices.length,
+          itemBuilder: (_, index) {
+            final device = wifiDevices[index];
+            return ListTile(
+              title: Text(device['ssid']!),
+              subtitle: Text('IP: ${device['ip']}'),
+              onTap: () {
+                Navigator.pop(context); // close list
+                _connectAndRegisterWiFi(device['ip']!);
+              },
+            );
+          },
+        ),
+      ),
+    ),
+  );
+}
+
+Future<void> _connectAndRegisterWiFi(String ip) async {
+  try {
+    // Step 1: Ask for device name
+    final nameController = TextEditingController();
+    final customName = await showDialog<String>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text('Name your device'),
+        content: TextField(
+          controller: nameController,
+          decoration: InputDecoration(hintText: 'e.g. Smart Plug'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel')),
+          ElevatedButton(
+            onPressed: () {
+              final name = nameController.text.trim();
+              if (name.isNotEmpty) Navigator.pop(context, name);
+            },
+            child: Text('Confirm'),
+          ),
+        ],
+      ),
+    );
+
+    if (customName == null || customName.isEmpty) return;
+
+    // Step 2: Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 16),
+            Expanded(child: Text("Registering device...")),
+          ],
+        ),
+      ),
+    );
+
+    // Step 3: Send request to ESP32
+    final response = await http.post(
+      Uri.parse('http://$ip/register'),
+      body: {'name': customName},
+    );
+
+    if (response.statusCode == 200) {
+      // Step 4: Add to Firebase
+      final user = FirebaseAuth.instance.currentUser;
+      final deviceId = uuid.v4();
+      await FirebaseFirestore.instance.collection('devices').doc(deviceId).set({
+        'id': deviceId,
+        'name': customName,
+        'ownerId': user?.uid,
+        'type': 'wifi',
+        'isOnline': true,
+      });
+
+      if (Navigator.canPop(context)) Navigator.pop(context); // close loading
+      if (Navigator.canPop(context)) Navigator.pop(context); // close drawer
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('✅ Device "$customName" added')),
+      );
+
+      setState(() {}); // Refresh list
+    } else {
+      if (Navigator.canPop(context)) Navigator.pop(context); // close loading
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('❌ Failed to register device')),
+      );
+    }
+  } catch (e) {
+    if (Navigator.canPop(context)) Navigator.pop(context); // close loading
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('❌ Error: $e')),
+    );
+  }
+}
+
 
 void _showBluetoothDeviceList() async {
  
