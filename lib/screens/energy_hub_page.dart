@@ -1,4 +1,3 @@
-// ✅ energy_hub_page.dart (FULLY UPDATED with independent budgets)
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -29,6 +28,16 @@ class _EnergyHubPageState extends State<EnergyHubPage> {
     super.initState();
     _fetchElectricityPrice();
   }
+
+  double _getYAxisInterval(List<double> values) {
+  final maxY = values.reduce(max);
+  if (maxY <= 100) return 20;
+  if (maxY <= 500) return 100;
+  if (maxY <= 1000) return 200;
+  if (maxY <= 3000) return 500;
+  return 1000;
+}
+
 
   Future<void> _fetchElectricityPrice() async {
     final url = Uri.parse(
@@ -204,76 +213,106 @@ class _EnergyHubPageState extends State<EnergyHubPage> {
     }
   }
 
-  Widget _buildLineChart(List<double> values) {
-    return SizedBox(
-      height: 200,
-      child: LineChart(
-        LineChartData(
-          lineBarsData: [
-            LineChartBarData(
-              spots: values.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value)).toList(),
-              isCurved: true,
-              color: Colors.deepOrange,
-              barWidth: 3,
-              belowBarData: BarAreaData(
-                show: true,
-                gradient: LinearGradient(
-                  colors: [Colors.deepOrange.withOpacity(0.4), Colors.deepOrange.withOpacity(0.05)],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
+Widget _buildLineChart(List<double> values) {
+  return SizedBox(
+    height: 200,
+    child: LineChart(
+      LineChartData(
+        lineBarsData: [
+          LineChartBarData(
+            spots: values.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value)).toList(),
+            isCurved: true,
+            color: Colors.deepOrange,
+            barWidth: 3,
+            belowBarData: BarAreaData(
+              show: true,
+              gradient: LinearGradient(
+                colors: [Colors.deepOrange.withOpacity(0.4), Colors.deepOrange.withOpacity(0.05)],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
               ),
-              dotData: FlDotData(show: false),
-            )
-          ],
-          gridData: FlGridData(show: false),
-          borderData: FlBorderData(show: false),
-          titlesData: FlTitlesData(
-            leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            bottomTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                getTitlesWidget: (value, _) =>
-                    Text(_formatDateLabel(value.toInt()), style: TextStyle(fontSize: 10)),
+            ),
+            dotData: FlDotData(show: false),
+          )
+        ],
+        gridData: FlGridData(show: false),
+        borderData: FlBorderData(show: false),
+        titlesData: FlTitlesData(
+          topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              interval: _getYAxisInterval(values),
+              reservedSize: 40,
+              getTitlesWidget: (value, _) => Text(
+                value.toStringAsFixed(0),
+                style: TextStyle(fontSize: 10),
+                textAlign: TextAlign.right,
               ),
+            ),
+          ),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              getTitlesWidget: (value, _) =>
+                  Text(_formatDateLabel(value.toInt()), style: TextStyle(fontSize: 10)),
             ),
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
-  Widget _buildBarChart(List<double> values) {
-    return SizedBox(
-      height: 200,
-      child: BarChart(
-        BarChartData(
-          barGroups: values.asMap().entries.map((e) {
-            return BarChartGroupData(x: e.key, barRods: [
-              BarChartRodData(
-                toY: e.value,
-                color: Colors.orangeAccent,
-                width: 14,
-                borderRadius: BorderRadius.circular(4),
-              )
-            ]);
-          }).toList(),
-          titlesData: FlTitlesData(
-            bottomTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                getTitlesWidget: (value, _) =>
-                    Text(_formatDateLabel(value.toInt()), style: TextStyle(fontSize: 10)),
+
+
+ Widget _buildBarChart(List<double> values) {
+  return SizedBox(
+    height: 200,
+    child: BarChart(
+      BarChartData(
+        barGroups: values.asMap().entries.map((e) {
+          return BarChartGroupData(x: e.key, barRods: [
+            BarChartRodData(
+              toY: e.value,
+              color: Colors.orangeAccent,
+              width: 14,
+              borderRadius: BorderRadius.circular(4),
+            )
+          ]);
+        }).toList(),
+        titlesData: FlTitlesData(
+          topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              interval: _getYAxisInterval(values),
+              reservedSize: 40,
+              getTitlesWidget: (value, _) => Text(
+                value.toStringAsFixed(0),
+                style: TextStyle(fontSize: 10),
+                textAlign: TextAlign.right,
               ),
             ),
-            leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
           ),
-          borderData: FlBorderData(show: false),
-          gridData: FlGridData(show: false),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              getTitlesWidget: (value, _) =>
+                  Text(_formatDateLabel(value.toInt()), style: TextStyle(fontSize: 10)),
+            ),
+          ),
         ),
+        borderData: FlBorderData(show: false),
+        gridData: FlGridData(show: false),
       ),
-    );
-  }
+    ),
+  );
+}
+
+
 
   Widget _buildTopConsumers(Map<String, List<double>> data) {
     final totals = data.entries
