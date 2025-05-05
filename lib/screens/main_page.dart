@@ -49,7 +49,8 @@ class _MainPageState extends State<MainPage> {
       ),
       EnvironmentPage(),
       DevicesPage(),
-      EnergyHubPage(devices: devices),
+      EnergyHubPage(),
+
     ];
 
     return Scaffold(

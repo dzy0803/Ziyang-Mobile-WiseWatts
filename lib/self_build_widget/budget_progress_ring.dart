@@ -16,7 +16,7 @@ class BudgetProgressRing extends StatelessWidget {
     this.max = 5000,
     required this.color,
     this.size = 280,
-    this.label = 'Budget',
+    this.label = 'Set Your Budget',
   }) : super(key: key);
 
   @override

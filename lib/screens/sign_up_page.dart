@@ -20,7 +20,7 @@ class _SignUpPageState extends State<SignUpPage> {
 
   bool _isLoading = false;
 
-  // Lookup address from UK postcode API and fill the address text field
+  // Lookup UK address using postcode API
   Future<void> _lookupAddressByPostcode() async {
     final postcode = _postcodeController.text.trim();
     if (postcode.isEmpty) {
@@ -49,7 +49,7 @@ class _SignUpPageState extends State<SignUpPage> {
     }
   }
 
-  // Register user and save account info and address in Firestore
+  // Register user and assign all default devices
   void _register() async {
     setState(() => _isLoading = true);
 
@@ -77,13 +77,14 @@ class _SignUpPageState extends State<SignUpPage> {
 
       final uid = userCredential.user?.uid;
 
-      // Parse structured address from address string
+      // Parse address structure
       final parts = address.split(',').map((e) => e.trim()).toList();
       final addressLine1 = parts.isNotEmpty ? parts[0] : '';
       final addressLine2 = parts.length > 1 ? parts[1] : '';
       final city = parts.length > 2 ? parts[2] : '';
       final country = parts.length > 3 ? parts[3] : '';
 
+      // Save user info
       await FirebaseFirestore.instance.collection('users').doc(uid).set({
         'name': name,
         'phone': phone,
@@ -96,6 +97,45 @@ class _SignUpPageState extends State<SignUpPage> {
         'country': country,
         'createdAt': Timestamp.now(),
       });
+
+      // Device initialization (Add all 30 devices)
+      final deviceNames = [
+        'Smart Fridge (RED LED)', 'Air Conditioner (GREEN LED)', 'Washing Machine (YELLOW LED)',
+        'Heater', 'Smart TV', 'Microwave Oven', 'Water Heater', 'LED Lighting', 'WiFi Router',
+        'Smart Speaker', 'Laptop Charger', 'Electric Kettle', 'Robot Vacuum', 'Dishwasher',
+        'Coffee Maker', 'Oven', 'Hair Dryer', 'Gaming Console', 'Security Camera', 'Smart Plug',
+        'Ceiling Fan', 'Door Sensor', 'Window Sensor', 'Motion Detector', 'Smart Doorbell',
+        'Garage Opener', 'Water Leak Sensor', 'Air Purifier', 'Baby Monitor', 'Smart Thermostat',
+      ];
+
+      final fixedDeviceIds = {
+        'Smart Fridge (RED LED)': '000000', 'Air Conditioner (GREEN LED)': '000001',
+        'Washing Machine (YELLOW LED)': '000010', 'Heater': '000011', 'Smart TV': '000100',
+        'Microwave Oven': '000101', 'Water Heater': '000110', 'LED Lighting': '000111',
+        'WiFi Router': '001000', 'Smart Speaker': '001001', 'Laptop Charger': '001010',
+        'Electric Kettle': '001011', 'Robot Vacuum': '001100', 'Dishwasher': '001101',
+        'Coffee Maker': '001110', 'Oven': '001111', 'Hair Dryer': '010000', 'Gaming Console': '010001',
+        'Security Camera': '010010', 'Smart Plug': '010011', 'Ceiling Fan': '010100',
+        'Door Sensor': '010101', 'Window Sensor': '010110', 'Motion Detector': '010111',
+        'Smart Doorbell': '011000', 'Garage Opener': '011001', 'Water Leak Sensor': '011010',
+        'Air Purifier': '011011', 'Baby Monitor': '011100', 'Smart Thermostat': '011101',
+      };
+
+      final batch = FirebaseFirestore.instance.batch();
+      for (int i = 0; i < deviceNames.length; i++) {
+        final name = deviceNames[i];
+        final deviceId = fixedDeviceIds[name]!;
+        final docRef = FirebaseFirestore.instance.collection('devices').doc(deviceId);
+
+        batch.set(docRef, {
+          'id': deviceId,
+          'name': name,
+          'ownerId': uid,
+          'isOnline': false,
+          'createdAt': Timestamp.now(),
+        });
+      }
+      await batch.commit();
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('✅ Registration successful! Please login.'), backgroundColor: Colors.green),
@@ -116,6 +156,7 @@ class _SignUpPageState extends State<SignUpPage> {
     }
   }
 
+  // Generic text field builder
   Widget _buildTextField(TextEditingController controller, String labelText,
       {bool obscure = false, TextInputType keyboardType = TextInputType.text, Widget? suffix}) {
     return TextField(

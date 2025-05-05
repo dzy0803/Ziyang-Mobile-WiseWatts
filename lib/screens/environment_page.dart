@@ -428,34 +428,47 @@ class _EnvironmentPageState extends State<EnvironmentPage> {
             IconButton(
               icon: Icon(Icons.edit, color: Colors.orangeAccent),
               onPressed: () async {
-                final result = await Navigator.pushNamed(context, '/editAddress');
-                if (result != null && result is Map) {
-                  setState(() {
-                    addressLine1 = result['addressLine1'];
-                    addressLine2 = result['addressLine2'];
-                    city = result['city'];
-                    postcode = result['postcode'];
-                    country = result['country'];
-                  });
+  final result = await Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => EditAddressPage(
+        addressLine1: addressLine1,
+        addressLine2: addressLine2,
+        city: city,
+        postcode: postcode,
+        country: country,
+      ),
+    ),
+  );
 
-                  final user = FirebaseAuth.instance.currentUser;
-                  if (user != null) {
-                    FirebaseFirestore.instance.collection('users').doc(user.uid).update({
-                      'addressLine1': addressLine1,
-                      'addressLine2': addressLine2,
-                      'city': city,
-                      'postcode': postcode,
-                      'country': country,
-                    });
-                  }
+  if (result != null && result is Map) {
+    setState(() {
+      addressLine1 = result['addressLine1'];
+      addressLine2 = result['addressLine2'];
+      city = result['city'];
+      postcode = result['postcode'];
+      country = result['country'];
+    });
 
-                  if (isAddressFilled) {
-                    _startSensorListeners();
-                  } else {
-                    timer?.cancel();
-                  }
-                }
-              },
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+        'addressLine1': addressLine1,
+        'addressLine2': addressLine2,
+        'city': city,
+        'postcode': postcode,
+        'country': country,
+      });
+    }
+
+    if (isAddressFilled) {
+      _startSensorListeners();
+    } else {
+      timer?.cancel();
+    }
+  }
+}
+
             ),
           ],
         ),

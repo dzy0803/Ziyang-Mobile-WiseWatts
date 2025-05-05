@@ -255,8 +255,9 @@ Widget _buildForecastCard() {
     );
   }
 
-  double minTemp = hourlyForecast.map((e) => e['temp'] as double).reduce((a, b) => a < b ? a : b);
-  double maxTemp = hourlyForecast.map((e) => e['temp'] as double).reduce((a, b) => a > b ? a : b);
+double minTemp = hourlyForecast.map((e) => (e['temp'] as num).toDouble()).reduce((a, b) => a < b ? a : b);
+double maxTemp = hourlyForecast.map((e) => (e['temp'] as num).toDouble()).reduce((a, b) => a > b ? a : b);
+
   double yMin = (minTemp - 2).floorToDouble();
   double yMax = (maxTemp + 2).ceilToDouble();
 
@@ -312,7 +313,8 @@ Widget _buildForecastCard() {
                 lineBarsData: [
                   LineChartBarData(
                     spots: List.generate(hourlyForecast.length, (i) {
-                      return FlSpot(i.toDouble(), hourlyForecast[i]['temp']);
+                      return FlSpot(i.toDouble(), (hourlyForecast[i]['temp'] as num).toDouble());
+
                     }),
                     isCurved: true,
                     barWidth: 3,
