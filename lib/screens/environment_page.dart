@@ -8,11 +8,10 @@ import 'sensor_data_model.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:environment_sensors/environment_sensors.dart';
-import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:geocoding/geocoding.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_database/firebase_database.dart';
+
+
+
 
 class EditAddressPage extends StatefulWidget {
   final String addressLine1;
@@ -252,12 +251,16 @@ class _EnvironmentPageState extends State<EnvironmentPage> {
   final List<double> temperatureHistory = [];
   final List<double> humidityHistory = [];
   final List<double> pressureHistory = [];
+  final List<DateTime> timeHistory = [];
 
   Timer? timer;
   final random = Random();
 
   final EnvironmentSensors _environmentSensors = EnvironmentSensors();
   StreamSubscription<double>? _lightSubscription;
+
+  final DatabaseReference dhtSensorRef =
+      FirebaseDatabase.instance.ref('sensors/dht11_sensor');
 
   bool get isAddressFilled =>
       addressLine1.isNotEmpty &&
@@ -278,7 +281,6 @@ class _EnvironmentPageState extends State<EnvironmentPage> {
     super.dispose();
   }
 
-  // Load address from Firebase and start sensor
   Future<void> _loadAddressFromFirebase() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -302,51 +304,35 @@ class _EnvironmentPageState extends State<EnvironmentPage> {
     }
   }
 
-  // Start sensor reading with real light data
   void _startSensorListeners() {
     timer?.cancel();
     _lightSubscription?.cancel();
 
     SensorDataModel().startAveraging();
 
-    // Listen to real light sensor
     _lightSubscription = _environmentSensors.light.listen((lux) {
       setState(() {
         light = lux;
         _updateHistory(lightHistory, light);
-        SensorDataModel().updateSensors(
-          light: light,
-          temperature: temperature,
-          humidity: humidity,
-          pressure: pressure,
-        );
       });
     });
 
-    // Simulate temperature, humidity, and pressure
     timer = Timer.periodic(Duration(seconds: 1), (_) {
       setState(() {
-        temperature = 15 + random.nextDouble() * 15;
-        humidity = 30 + random.nextDouble() * 70;
         pressure = 980 + random.nextDouble() * 40;
-
-        _updateHistory(temperatureHistory, temperature);
-        _updateHistory(humidityHistory, humidity);
         _updateHistory(pressureHistory, pressure);
-
-        SensorDataModel().updateSensors(
-          light: light,
-          temperature: temperature,
-          humidity: humidity,
-          pressure: pressure,
-        );
       });
     });
   }
 
   void _updateHistory(List<double> history, double value) {
     history.add(value);
-    if (history.length > 60) history.removeAt(0);
+    timeHistory.add(DateTime.now());
+
+    if (history.length > 60) {
+      history.removeAt(0);
+      timeHistory.removeAt(0);
+    }
   }
 
   @override
@@ -369,9 +355,7 @@ class _EnvironmentPageState extends State<EnvironmentPage> {
             SizedBox(height: 24),
             _buildSensorCard(Icons.wb_sunny, 'Ambient Light', light, 'lux', Colors.yellow.shade600),
             SizedBox(height: 16),
-            _buildSensorCard(Icons.thermostat, 'Temperature', temperature, '°C', Colors.redAccent),
-            SizedBox(height: 16),
-            _buildSensorCard(Icons.water_drop, 'Humidity', humidity, '%', Colors.blueAccent),
+            _buildTemperatureHumidityFromRealtimeDB(),
             SizedBox(height: 16),
             _buildSensorCard(Icons.speed, 'Air Pressure', pressure, 'hPa', Colors.deepPurpleAccent),
             SizedBox(height: 30),
@@ -382,6 +366,45 @@ class _EnvironmentPageState extends State<EnvironmentPage> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildTemperatureHumidityFromRealtimeDB() {
+    return StreamBuilder<DatabaseEvent>(
+      stream: dhtSensorRef.onValue,
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data?.snapshot.value == null) {
+          return Column(
+            children: [
+              _buildSensorCard(Icons.thermostat, 'Temperature', 0, '°C', Colors.redAccent),
+              SizedBox(height: 16),
+              _buildSensorCard(Icons.water_drop, 'Humidity', 0, '%', Colors.blueAccent),
+            ],
+          );
+        }
+
+        final data = Map<String, dynamic>.from(snapshot.data!.snapshot.value as Map);
+        final temp = (data['temperature'] ?? 0).toDouble();
+        final hum = (data['humidity'] ?? 0).toDouble();
+
+        _updateHistory(temperatureHistory, temp);
+        _updateHistory(humidityHistory, hum);
+
+        SensorDataModel().updateSensors(
+          light: light,
+          temperature: temp,
+          humidity: hum,
+          pressure: pressure,
+        );
+
+        return Column(
+          children: [
+            _buildSensorCard(Icons.thermostat, 'Temperature', temp, '°C', Colors.redAccent),
+            SizedBox(height: 16),
+            _buildSensorCard(Icons.water_drop, 'Humidity', hum, '%', Colors.blueAccent),
+          ],
+        );
+      },
     );
   }
 
@@ -483,7 +506,7 @@ class _EnvironmentPageState extends State<EnvironmentPage> {
           SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Sensor History (last hour / one reading per minute)',
+              'Sensor Reading Flow',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
           ),
@@ -494,11 +517,33 @@ class _EnvironmentPageState extends State<EnvironmentPage> {
 
   Widget _buildChart() {
     return SizedBox(
-      height: 220,
+      height: 240,
       child: LineChart(
         LineChartData(
           gridData: FlGridData(show: true),
-          titlesData: FlTitlesData(show: false),
+          titlesData: FlTitlesData(
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 28,
+                interval: 10,
+                getTitlesWidget: (value, meta) {
+                  final index = value.toInt();
+                  if (index < 0 || index >= timeHistory.length) return Text('');
+                  final t = timeHistory[index];
+                  final label = '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+                  return SideTitleWidget(
+                    axisSide: meta.axisSide,
+                    space: 6,
+                    child: Text(label, style: TextStyle(fontSize: 10)),
+                  );
+                },
+              ),
+            ),
+            leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          ),
           borderData: FlBorderData(show: true),
           lineBarsData: [
             LineChartBarData(
