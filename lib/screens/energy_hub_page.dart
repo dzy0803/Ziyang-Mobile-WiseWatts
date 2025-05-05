@@ -473,6 +473,42 @@ class _EnergyHubPageState extends State<EnergyHubPage> {
                                       style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                                   SizedBox(height: 6),
                                   Text('Cost: £${_lastTotalCost.toStringAsFixed(2)}'),
+                                  SizedBox(height: 8),
+Row(
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+    Padding(
+      padding: const EdgeInsets.only(left: 2), // 图标左移
+      child: Icon(
+        _lastTotalConsumption > _getCurrentBudget()
+            ? Icons.warning_amber_rounded
+            : Icons.check_circle_outline,
+        color: _lastTotalConsumption > _getCurrentBudget()
+            ? Colors.redAccent
+            : Colors.green,
+        size: 18, // 图标略小，避免高度撐開
+      ),
+    ),
+    SizedBox(width: 6),
+    Flexible(
+      child: Text(
+        _lastTotalConsumption > _getCurrentBudget()
+            ? 'Heads up ! Exceeded budget !'
+            : 'Good performance, within budget.',
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+          color: _lastTotalConsumption > _getCurrentBudget()
+              ? Colors.redAccent
+              : Colors.green,
+        ),
+        overflow: TextOverflow.ellipsis,
+        maxLines: 1,
+      ),
+    ),
+  ],
+),
+
                                 ],
                               ),
                             ),
