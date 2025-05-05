@@ -478,7 +478,7 @@ Row(
   crossAxisAlignment: CrossAxisAlignment.start,
   children: [
     Padding(
-      padding: const EdgeInsets.only(left: 2), // 图标左移
+      padding: const EdgeInsets.only(left: 2), 
       child: Icon(
         _lastTotalConsumption > _getCurrentBudget()
             ? Icons.warning_amber_rounded
@@ -486,7 +486,7 @@ Row(
         color: _lastTotalConsumption > _getCurrentBudget()
             ? Colors.redAccent
             : Colors.green,
-        size: 18, // 图标略小，避免高度撐開
+        size: 18, 
       ),
     ),
     SizedBox(width: 6),

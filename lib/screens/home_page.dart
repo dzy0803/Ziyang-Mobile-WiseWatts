@@ -549,6 +549,7 @@ Widget build(BuildContext context) {
 ),
    SizedBox(height: 24),
     _buildEnergySummaryCard(), 
+    _buildPaymentCard(),
             ],
           ),
         );
@@ -767,7 +768,196 @@ if (data == null || data['cost'] == null) {
   }
 
 
-  
+Widget _buildPaymentCard() {
+  String _selectedRange = 'week';
+  double? _selectedCost;
+  bool _alreadyPaid = false;
+
+  return StatefulBuilder(
+    builder: (context, setState) {
+      final data = _energyStats[_selectedRange];
+      _selectedCost = (data?['cost'] ?? 0.0).toDouble();
+      _alreadyPaid = (data?['paid'] ?? false) as bool;
+
+      return Card(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        elevation: 4,
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Pay Energy Bill', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              SizedBox(height: 16),
+              DropdownButton<String>(
+                value: _selectedRange,
+                items: ['week', 'month', 'year'].map((range) {
+                  return DropdownMenuItem(
+                    value: range,
+                    child: Text('${range[0].toUpperCase()}${range.substring(1)}'),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedRange = value!;
+                  });
+                },
+              ),
+              SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Amount Due: £${_selectedCost!.toStringAsFixed(2)}',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: _alreadyPaid ? Colors.green.shade100 : Colors.yellow.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      _alreadyPaid ? 'Paid' : 'Unpaid',
+                      style: TextStyle(
+                        color: _alreadyPaid ? Colors.green : Colors.orange,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 16),
+              Center(
+                child: ElevatedButton.icon(
+                  icon: Icon(Icons.payment),
+                  label: Text('Pay Now'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _alreadyPaid ? Colors.grey : Colors.green,
+                  ),
+                  onPressed: _alreadyPaid
+                      ? null
+                      : () async {
+                          final user = FirebaseAuth.instance.currentUser;
+                          if (user == null) return;
+
+                          final userDoc = FirebaseFirestore.instance.collection('users').doc(user.uid);
+                          final docSnapshot = await userDoc.get();
+                          final currentBalance = (docSnapshot.data()?['balance'] ?? 0.0).toDouble();
+
+                          if (_selectedCost! > currentBalance) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Insufficient balance. Please top up.'),
+                                backgroundColor: Colors.redAccent,
+                              ),
+                            );
+                            return;
+                          }
+
+                          final confirmed = await showDialog<bool>(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              title: Text('Confirm Payment'),
+                              content: Text(
+                                  'Pay £${_selectedCost!.toStringAsFixed(2)} for $_selectedRange usage?'),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context, false),
+                                  child: Text('Cancel'),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context, true),
+                                  child: Text('Confirm'),
+                                ),
+                              ],
+                            ),
+                          );
+
+                          if (confirmed != true) return;
+
+                          showDialog(
+                            context: context,
+                            barrierDismissible: false,
+                            builder: (context) => Dialog(
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              child: Padding(
+                                padding: const EdgeInsets.all(24.0),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    CircularProgressIndicator(),
+                                    SizedBox(width: 16),
+                                    Text('Processing...', style: TextStyle(fontSize: 16)),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+
+                          await Future.delayed(Duration(seconds: 1));
+                          Navigator.of(context).pop(); // close loading
+
+                          // Deduct balance & mark as paid
+                          await userDoc.update({'balance': currentBalance - _selectedCost!});
+                          await FirebaseFirestore.instance
+                              .collection('users')
+                              .doc(user.uid)
+                              .collection('energyStats')
+                              .doc(_selectedRange)
+                              .set({'paid': true}, SetOptions(merge: true));
+
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Payment successful!'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        },
+                ),
+              ),
+
+              // 🔁 Reset Button
+              SizedBox(height: 24),
+              Center(
+                child: TextButton.icon(
+                  icon: Icon(Icons.restart_alt),
+                  label: Text('Reset Payment Status (for demo)'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.redAccent,
+                  ),
+                  onPressed: () async {
+                    final user = FirebaseAuth.instance.currentUser;
+                    if (user == null) return;
+
+                    for (final range in ['week', 'month', 'year']) {
+                      await FirebaseFirestore.instance
+                          .collection('users')
+                          .doc(user.uid)
+                          .collection('energyStats')
+                          .doc(range)
+                          .set({'paid': false}, SetOptions(merge: true));
+                    }
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('All payment statuses reset.'),
+                        backgroundColor: Colors.orange,
+                      ),
+                    );
+
+                    setState(() {}); // refresh UI
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+
+
 
  Widget _buildDeviceCard(int total, int online) {
   return Card(
