@@ -25,6 +25,9 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  String? _currentPostcode;
+  String? _homePostcode;
+
   DateTime? _lastUpdated;
   Timer? _weatherTimer;
   double accountBalance = 0.0;
@@ -87,6 +90,7 @@ void dispose() {
 
   void _loadHomeAddressLocation() async {
     final user = FirebaseAuth.instance.currentUser;
+    
     if (user != null) {
       final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
       if (doc.exists) {
@@ -104,6 +108,7 @@ void dispose() {
             print("Failed to locate home address: $e");
           }
         }
+        _homePostcode = data?['postcode'];
       }
     }
   }
@@ -136,23 +141,38 @@ void dispose() {
       setState(() {
         userLocation = '${place.name}, ${place.street}, ${place.locality}, ${place.administrativeArea}, ${place.postalCode}';
         _currentLatLng = LatLng(position.latitude, position.longitude);
+         _currentPostcode = place.postalCode;
       });
       _fetchWeather(position.latitude, position.longitude);
     }
   }
 
-  void _startLocationUpdates() {
-    const locationSettings = LocationSettings(accuracy: LocationAccuracy.high, distanceFilter: 10);
-    _positionStream = Geolocator.getPositionStream(locationSettings: locationSettings).listen((Position position) {
-      final updatedLatLng = LatLng(position.latitude, position.longitude);
-      setState(() {
-        _currentLatLng = updatedLatLng;
-      });
-      if (_mapController != null) {
-        _mapController!.animateCamera(CameraUpdate.newLatLng(updatedLatLng));
-      }
+void _startLocationUpdates() {
+  const locationSettings = LocationSettings(accuracy: LocationAccuracy.high, distanceFilter: 10);
+  _positionStream = Geolocator.getPositionStream(locationSettings: locationSettings).listen((Position position) async {
+    final updatedLatLng = LatLng(position.latitude, position.longitude);
+    setState(() {
+      _currentLatLng = updatedLatLng;
     });
-  }
+    if (_mapController != null) {
+      _mapController!.animateCamera(CameraUpdate.newLatLng(updatedLatLng));
+    }
+
+    // update _currentPostcode
+    try {
+      final placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
+      if (placemarks.isNotEmpty) {
+        final place = placemarks.first;
+        setState(() {
+          _currentPostcode = place.postalCode;
+        });
+      }
+    } catch (e) {
+      print("Failed to update postcode in live location: $e");
+    }
+  });
+}
+
 
 void _fetchWeather(double lat, double lon) async {
   final apiKey = 'a3ff1efc32898aafb3690fe87e70d2fd';
@@ -523,7 +543,9 @@ Widget build(BuildContext context) {
             children: [
               _buildLocationSection(),
               _buildMapSection(),
-              
+              _buildHomeStatusCard(),
+              SizedBox(height: 16),
+
               _buildBalanceCard(),
               SizedBox(height: 24),
               _buildWeatherSection(),
@@ -1001,6 +1023,40 @@ Widget _buildPaymentCard() {
     ),
   );
 }
+
+Widget _buildHomeStatusCard() {
+  if (_currentPostcode == null || _homePostcode == null) return SizedBox.shrink();
+
+  final isAtHome = _currentPostcode == _homePostcode;
+  return Card(
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    elevation: 4,
+    color: isAtHome ? Colors.green.shade50 : Colors.red.shade50,
+    child: Padding(
+      padding: const EdgeInsets.all(20),
+      child: Row(
+        children: [
+          Icon(isAtHome ? Icons.home : Icons.warning,
+              color: isAtHome ? Colors.green : Colors.redAccent),
+          SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              isAtHome
+                  ? 'Welcome home. Please turn on the appliances as needed.'
+                  : 'You are not at home. Please go to the device page to turn off unnecessary electrical appliances.',
+              style: TextStyle(
+                fontSize: 16,
+                color: isAtHome ? Colors.green[800] : Colors.red[800],
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
 
 
   Widget _buildSensorRow(IconData icon, String label, double? value, String unit) {
