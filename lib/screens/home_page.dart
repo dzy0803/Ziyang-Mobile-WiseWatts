@@ -12,6 +12,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'devices_page.dart';
 import 'top_up_page.dart';
 import 'sensor_data_model.dart';
+import 'energy_hub_page.dart';
 
 class HomePage extends StatefulWidget {
   final List<Map<String, dynamic>> devices;
@@ -43,6 +44,7 @@ class _HomePageState extends State<HomePage> {
   double humidity = 0.0;
   double windSpeed = 0.0;
   List<Map<String, dynamic>> hourlyForecast = [];
+  Map<String, Map<String, dynamic>> _energyStats = {};
 
   @override
   void initState() {
@@ -51,6 +53,8 @@ class _HomePageState extends State<HomePage> {
     _determinePositionAndAddress();
     _startLocationUpdates();
     _loadHomeAddressLocation();
+    _listenToEnergyStats();
+
     _weatherTimer = Timer.periodic(Duration(minutes: 15), (timer) {
   if (_currentLatLng != null) {
     _fetchWeather(_currentLatLng!.latitude, _currentLatLng!.longitude);
@@ -543,7 +547,8 @@ Widget build(BuildContext context) {
     return _buildDeviceCard(totalDevices, onlineDevices);
   },
 ),
-
+   SizedBox(height: 24),
+    _buildEnergySummaryCard(), 
             ],
           ),
         );
@@ -654,6 +659,86 @@ Widget build(BuildContext context) {
       ),
     );
   }
+ void _listenToEnergyStats() {
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) return;
+
+  for (final range in ['week', 'month', 'year']) {
+    FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .collection('energyStats')
+        .doc(range)
+        .snapshots()
+        .listen((doc) {
+      if (doc.exists) {
+        setState(() {
+          _energyStats[range] = doc.data()!;
+        });
+      }
+    });
+  }
+}
+
+  Widget _buildEnergySummaryCard() {
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 4,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Energy Usage Summary', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            SizedBox(height: 16),
+            ...['week', 'month', 'year'].map((range) {
+              final data = _energyStats[range];
+if (data == null || data['cost'] == null) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 6),
+    child: Text('$range: Loading...', style: TextStyle(color: Colors.grey[600])),
+  );
+}
+              final consumption = (data['consumption'] ?? 0.0) as double;
+              final cost = (data['cost'] ?? 0.0) as double;
+
+           return Padding(
+  padding: const EdgeInsets.symmetric(vertical: 6),
+  child: Row(
+    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    children: [
+      Text('${range[0].toUpperCase()}${range.substring(1)}:', style: TextStyle(fontSize: 16)),
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Text('Usage: ${consumption.toStringAsFixed(0)} Wh', style: TextStyle(fontSize: 14)),
+          Text('Cost: £${cost.toStringAsFixed(2)}', style: TextStyle(fontSize: 14)),
+        ],
+      )
+    ],
+  ),
+);
+            }).toList(),
+            SizedBox(height: 16),
+            Align(
+  alignment: Alignment.centerRight,
+  child: ElevatedButton.icon(
+    onPressed: () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => EnergyHubPage()),
+      );
+    },
+    icon: Icon(Icons.bolt),
+    label: Text('View Details'),
+    style: ElevatedButton.styleFrom(backgroundColor: Colors.orangeAccent),
+  ),
+)
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget _buildSensorCard(SensorDataModel model) {
     return Card(
@@ -707,18 +792,20 @@ Widget build(BuildContext context) {
             ),
           ),
           SizedBox(width: 8),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => DevicesPage()),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orangeAccent,
-            ),
-            child: Text('View'),
-          )
+          ElevatedButton.icon(
+  onPressed: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => DevicesPage()),
+    );
+  },
+  icon: Icon(Icons.devices), 
+  label: Text('View'),
+  style: ElevatedButton.styleFrom(
+    backgroundColor: Colors.orangeAccent,
+  ),
+)
+
         ],
       ),
     ),
@@ -741,3 +828,4 @@ Widget build(BuildContext context) {
     );
   }
 }
+

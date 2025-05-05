@@ -1,5 +1,3 @@
-
-// ✅ main_page.dart
 import 'package:flutter/material.dart';
 import 'home_page.dart';
 import 'devices_page.dart';

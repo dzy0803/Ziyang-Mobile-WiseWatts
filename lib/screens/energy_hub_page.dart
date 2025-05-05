@@ -7,6 +7,7 @@ import 'dart:math';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:wisewatts/self_build_widget/budget_progress_ring.dart';
+import 'energy_data_generator.dart';
 
 enum TimeRange { week, month, year }
 
@@ -23,6 +24,9 @@ class _EnergyHubPageState extends State<EnergyHubPage> {
   final Map<String, List<double>> _simulatedData = {};
   TimeRange _selectedRange = TimeRange.week;
 
+  double _lastTotalConsumption = 0.0;
+  double _lastTotalCost = 0.0;
+
   @override
   void initState() {
     super.initState();
@@ -30,14 +34,13 @@ class _EnergyHubPageState extends State<EnergyHubPage> {
   }
 
   double _getYAxisInterval(List<double> values) {
-  final maxY = values.reduce(max);
-  if (maxY <= 100) return 20;
-  if (maxY <= 500) return 100;
-  if (maxY <= 1000) return 200;
-  if (maxY <= 3000) return 500;
-  return 1000;
-}
-
+    final maxY = values.reduce(max);
+    if (maxY <= 100) return 20;
+    if (maxY <= 500) return 100;
+    if (maxY <= 1000) return 200;
+    if (maxY <= 3000) return 500;
+    return 1000;
+  }
 
   Future<void> _fetchElectricityPrice() async {
     final url = Uri.parse(
@@ -89,7 +92,88 @@ class _EnergyHubPageState extends State<EnergyHubPage> {
         behavior: SnackBarBehavior.floating,
       ));
     }
+
+    _uploadEnergyStats(
+      range: _selectedRange.name,
+      budget: value,
+      consumption: _lastTotalConsumption,
+      cost: _lastTotalCost,
+    );
   }
+
+  double _getCurrentBudget() {
+    switch (_selectedRange) {
+      case TimeRange.month:
+        return _monthlyBudget;
+      case TimeRange.year:
+        return _yearlyBudget;
+      case TimeRange.week:
+      default:
+        return _weeklyBudget;
+    }
+  }
+
+  Future<void> _uploadEnergyStats({
+    required String range,
+    required double budget,
+    required double consumption,
+    required double cost,
+  }) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final docRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .collection('energyStats')
+        .doc(range);
+
+    await docRef.set({
+      'budget': budget,
+      'consumption': consumption,
+      'cost': cost,
+      'timestamp': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  List<double> _calculateTotalEnergy(List<Map<String, dynamic>> devices) {
+    int count = _selectedRange == TimeRange.week
+        ? 7
+        : _selectedRange == TimeRange.month
+            ? 4
+            : 12;
+    bool monthly = _selectedRange == TimeRange.year;
+    bool weeklyGroup = _selectedRange == TimeRange.month;
+
+    List<double> totals = List.generate(count, (_) => 0.0);
+    for (var device in devices) {
+      final name = device['name'];
+      final data = EnergyDataGenerator.generateEnergyData(name, count, monthly: monthly, weeklyGroup: weeklyGroup);
+
+      _simulatedData[name] = data;
+      for (int i = 0; i < count; i++) {
+        totals[i] += data[i];
+      }
+    }
+    return totals;
+  }
+
+  String _formatDateLabel(int index) {
+    final now = DateTime.now();
+    switch (_selectedRange) {
+      case TimeRange.week:
+        final date = now.subtract(Duration(days: 6 - index));
+        return "${date.month}/${date.day}";
+      case TimeRange.month:
+        return "Week ${index + 1}";
+      case TimeRange.year:
+        final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        final date = DateTime(now.year, now.month - 11 + index);
+        return months[(date.month - 1) % 12];
+    }
+  }
+
+
 
   Widget _buildBudgetSection() {
     double minBudget, maxBudget, currentBudget;
@@ -156,163 +240,102 @@ class _EnergyHubPageState extends State<EnergyHubPage> {
         : Color.lerp(Colors.orange, Colors.red, (budget - 60000) / (2400000 - 60000))!;
   }
 
-  List<double> _generateEnergyData(String deviceName, int count, {bool monthly = false, bool weeklyGroup = false}) {
-    final now = DateTime.now();
-    return List.generate(count, (i) {
-      DateTime date;
-      if (monthly) {
-        date = DateTime(now.year, now.month - 11 + i);
-      } else if (weeklyGroup) {
-        date = now.subtract(Duration(days: (4 - i) * 7));
-      } else {
-        date = now.subtract(Duration(days: count - 1 - i));
-      }
-      final seed = deviceName.hashCode ^ date.year ^ date.month ^ (monthly ? 0 : date.day);
-      final random = Random(seed);
-      return monthly
-          ? 2500 + random.nextInt(1000) + random.nextDouble()
-          : weeklyGroup
-              ? 700 + random.nextInt(300) + random.nextDouble()
-              : 100 + random.nextInt(100) + random.nextDouble();
-    });
-  }
-
-  List<double> _calculateTotalEnergy(List<Map<String, dynamic>> devices) {
-    int count = _selectedRange == TimeRange.week
-        ? 7
-        : _selectedRange == TimeRange.month
-            ? 4
-            : 12;
-    bool monthly = _selectedRange == TimeRange.year;
-    bool weeklyGroup = _selectedRange == TimeRange.month;
-
-    List<double> totals = List.generate(count, (_) => 0.0);
-    for (var device in devices) {
-      final name = device['name'];
-      final data = _generateEnergyData(name, count, monthly: monthly, weeklyGroup: weeklyGroup);
-      _simulatedData[name] = data;
-      for (int i = 0; i < count; i++) {
-        totals[i] += data[i];
-      }
-    }
-    return totals;
-  }
-
-  String _formatDateLabel(int index) {
-    final now = DateTime.now();
-    switch (_selectedRange) {
-      case TimeRange.week:
-        final date = now.subtract(Duration(days: 6 - index));
-        return "${date.month}/${date.day}";
-      case TimeRange.month:
-        return "Week ${index + 1}";
-      case TimeRange.year:
-        final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        final date = DateTime(now.year, now.month - 11 + index);
-        return months[(date.month - 1) % 12];
-    }
-  }
-
-Widget _buildLineChart(List<double> values) {
-  return SizedBox(
-    height: 200,
-    child: LineChart(
-      LineChartData(
-        lineBarsData: [
-          LineChartBarData(
-            spots: values.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value)).toList(),
-            isCurved: true,
-            color: Colors.deepOrange,
-            barWidth: 3,
-            belowBarData: BarAreaData(
-              show: true,
-              gradient: LinearGradient(
-                colors: [Colors.deepOrange.withOpacity(0.4), Colors.deepOrange.withOpacity(0.05)],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
+  Widget _buildLineChart(List<double> values) {
+    return SizedBox(
+      height: 200,
+      child: LineChart(
+        LineChartData(
+          lineBarsData: [
+            LineChartBarData(
+              spots: values.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value)).toList(),
+              isCurved: true,
+              color: Colors.deepOrange,
+              barWidth: 3,
+              belowBarData: BarAreaData(
+                show: true,
+                gradient: LinearGradient(
+                  colors: [Colors.deepOrange.withOpacity(0.4), Colors.deepOrange.withOpacity(0.05)],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
               ),
-            ),
-            dotData: FlDotData(show: false),
-          )
-        ],
-        gridData: FlGridData(show: false),
-        borderData: FlBorderData(show: false),
-        titlesData: FlTitlesData(
-          topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          leftTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              interval: _getYAxisInterval(values),
-              reservedSize: 40,
-              getTitlesWidget: (value, _) => Text(
-                value.toStringAsFixed(0),
-                style: TextStyle(fontSize: 10),
-                textAlign: TextAlign.right,
-              ),
-            ),
-          ),
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              getTitlesWidget: (value, _) =>
-                  Text(_formatDateLabel(value.toInt()), style: TextStyle(fontSize: 10)),
-            ),
-          ),
-        ),
-      ),
-    ),
-  );
-}
-
-
-
- Widget _buildBarChart(List<double> values) {
-  return SizedBox(
-    height: 200,
-    child: BarChart(
-      BarChartData(
-        barGroups: values.asMap().entries.map((e) {
-          return BarChartGroupData(x: e.key, barRods: [
-            BarChartRodData(
-              toY: e.value,
-              color: Colors.orangeAccent,
-              width: 14,
-              borderRadius: BorderRadius.circular(4),
+              dotData: FlDotData(show: false),
             )
-          ]);
-        }).toList(),
-        titlesData: FlTitlesData(
-          topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          leftTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              interval: _getYAxisInterval(values),
-              reservedSize: 40,
-              getTitlesWidget: (value, _) => Text(
-                value.toStringAsFixed(0),
-                style: TextStyle(fontSize: 10),
-                textAlign: TextAlign.right,
+          ],
+          gridData: FlGridData(show: false),
+          borderData: FlBorderData(show: false),
+          titlesData: FlTitlesData(
+            topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                interval: _getYAxisInterval(values),
+                reservedSize: 40,
+                getTitlesWidget: (value, _) => Text(
+                  value.toStringAsFixed(0),
+                  style: TextStyle(fontSize: 10),
+                  textAlign: TextAlign.right,
+                ),
+              ),
+            ),
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                getTitlesWidget: (value, _) =>
+                    Text(_formatDateLabel(value.toInt()), style: TextStyle(fontSize: 10)),
               ),
             ),
           ),
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              getTitlesWidget: (value, _) =>
-                  Text(_formatDateLabel(value.toInt()), style: TextStyle(fontSize: 10)),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBarChart(List<double> values) {
+    return SizedBox(
+      height: 200,
+      child: BarChart(
+        BarChartData(
+          barGroups: values.asMap().entries.map((e) {
+            return BarChartGroupData(x: e.key, barRods: [
+              BarChartRodData(
+                toY: e.value,
+                color: Colors.orangeAccent,
+                width: 14,
+                borderRadius: BorderRadius.circular(4),
+              )
+            ]);
+          }).toList(),
+          titlesData: FlTitlesData(
+            topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                interval: _getYAxisInterval(values),
+                reservedSize: 40,
+                getTitlesWidget: (value, _) => Text(
+                  value.toStringAsFixed(0),
+                  style: TextStyle(fontSize: 10),
+                  textAlign: TextAlign.right,
+                ),
+              ),
+            ),
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                getTitlesWidget: (value, _) =>
+                    Text(_formatDateLabel(value.toInt()), style: TextStyle(fontSize: 10)),
+              ),
             ),
           ),
+          borderData: FlBorderData(show: false),
+          gridData: FlGridData(show: false),
         ),
-        borderData: FlBorderData(show: false),
-        gridData: FlGridData(show: false),
       ),
-    ),
-  );
-}
-
-
+    );
+  }
 
   Widget _buildTopConsumers(Map<String, List<double>> data) {
     final totals = data.entries
@@ -364,6 +387,16 @@ Widget _buildLineChart(List<double> values) {
           final devices = snapshot.data!.docs.map((d) => d.data() as Map<String, dynamic>).toList();
           final total = _calculateTotalEnergy(devices);
           final totalWh = total.reduce((a, b) => a + b).toStringAsFixed(0);
+
+          _lastTotalConsumption = double.tryParse(totalWh) ?? 0.0;
+          _lastTotalCost = (_lastTotalConsumption / 1000) * _currentElectricityPrice;
+
+          _uploadEnergyStats(
+            range: _selectedRange.name,
+            budget: _getCurrentBudget(),
+            consumption: _lastTotalConsumption,
+            cost: _lastTotalCost,
+          );
 
           return Column(
             children: [
@@ -439,7 +472,7 @@ Widget _buildLineChart(List<double> values) {
                                   Text('$totalWh Wh',
                                       style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                                   SizedBox(height: 6),
-                                  Text('Cost: £${((double.tryParse(totalWh) ?? 0.0) / 1000 * _currentElectricityPrice).toStringAsFixed(2)}'),
+                                  Text('Cost: £${_lastTotalCost.toStringAsFixed(2)}'),
                                 ],
                               ),
                             ),
@@ -468,7 +501,7 @@ Widget _buildLineChart(List<double> values) {
                     _buildTopConsumers(_simulatedData),
                     SizedBox(height: 24),
                     Text('Device Usage Details', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-SizedBox(height: 12),
+                    SizedBox(height: 12),
                     ...devices.map((device) {
                       final name = device['name'];
                       final data = _simulatedData[name]!;
