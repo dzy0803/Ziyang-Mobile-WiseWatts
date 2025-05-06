@@ -222,95 +222,34 @@ The ESP32 connects to Firebase via Wi-Fi and listens to its corresponding docume
 ---
 
 ## **3.4. ⚡Energy Hub Page**: 
-The Devices Page is the core module in the WiseWatts application for managing and controlling household appliances. This page enables users to add, view, control, and remove household appliance devices, aiming to help users manage their home energy usage more efficiently.
+Energy Hub is the energy control and data analysis center in the WiseWatts application, dedicated to helping users track electricity usage trends, set budget caps, and analyze the energy consumption of devices, thereby enabling more energy-efficient and controllable household electricity strategies.
 
 ### Main Functions:
-### 1. **Add Device**: Users can open the device addition interface by clicking the “+” button at the lower right corner of the page. The system supports two addition methods: 
+### 1. 
 
-<1>.Predefined device list: Select 30 common smart devices built into the system (such as refrigerators, air conditioners, washing machines, etc.). After clicking "Add", they will be automatically written to Firebase. 
 
-<2>. Custom device registration: 
 
-- Support pairing with ESP32 devices via Bluetooth Low Energy (BLE). 
+### 2.
 
-- Or connect to the ESP32 hotspot via Wi-Fi mode and send the device name. 
 
-After a successful operation, the device information will be automatically saved to Firebase, including fields such as ID, name, type, and status.
 
-### 2. **Device Status Monitor**: The added devices will be displayed in card form, including:
+### 3. 
 
-- Icon, device name, unique ID
 
-- Real-time online status (Online/Offline)
 
-- User can click to enter the device detail page to operate.
+### 4. 
 
-### 3. **Device Control and Deletion**: On the device detail page, users can:
-
-- Remotely one-click to switch the device's online/offline status that is synchronized and updated in Firebase.
-
-- Devices Deletion (Supports individual deletion and one-click deletion of all devices).
-
-### 4. **Real-time synchronization of each user device status**:
-All device data is in real-time connection with Firebase Firestore, ensuring that additions, deletions, and status changes can be immediately reflected on all user ends.
-
-<p align="center">
-    <img src="readme/dev_devices.png" alt="Static preview" height="600"/>
-    <img src="readme/dev_devices2.png" alt="Static preview" height="600"/>
-</p>
 
 
 ### Application scenarios:
 
-- Establish a smart home device network;
 
-- Precisely control the operating status of the equipment and combine Energy Hub to analyze energy consumption.
-
-- Lay the foundation for energy-saving management and remote control.
-
-<p align="center">
- <img src="readme/dev1.gif" alt="GIF demo" width="200"/>
-<img src="readme/dev2.gif" alt="Static preview" width="200"/>
-<img src="readme/dev3.gif" alt="Static preview" width="200"/>
-<img src="readme/dev4.gif" alt="Static preview" width="200"/>
-  <img src="readme/dev5.gif" alt="GIF demo" width="200"/>
-    <img src="readme/dev8.jpg" alt="Static preview" height="300"/>
-  <img src="readme/dev6.gif" alt="GIF demo" width="200"/>
-    <img src="readme/dev7.gif" alt="GIF demo" width="200"/>
-</p>
 
 ## Implementation Methods:
-During the current testing phase, to verify the system architecture and remote control functions, no real household appliances were directly connected. Instead, 
-we use the LEDs connected with ESP32 to simulate different types of household appliances (such as smart fridge (red led), air conditioners(green led), wash machine (yellow led)).  
-
-This approach facilitates high-frequency and low-risk testing during the development stage, ensuring the stability and reliability of logical chains such as device registration, status switching, and remote response, laying a foundation for future integration with actual loads (such as controlling real appliances through relays).
-
-The WiseWatts app, through integration with Firebase Firestore, enables remote on/off control of ESP32 devices. Any control operation performed on each device in the app, such as toggling the online/offline status, is synchronously updated to the corresponding document field in Firebase (e.g., isOnline), and the ESP32 continuously monitors the status changes of its own device document to execute the actual physical response.
-
-The control flow is as follows:
-
-### 1. Device registration: 
-Users register the ESP32 device to Firebase via Bluetooth or Wi-Fi to generate a unique deviceId. The app writes the basic device information (name, ID, type, etc.) to the devices collection in Firestore.
 
 
-### 2. Status update: 
-On the device detail page, users can switch the device status (on/off). The App will update the "isOnline" field in the corresponding device document.
 
-### 3. ESP32 device real-time monitoring: 
-The ESP32 connects to Firebase via Wi-Fi and listens to its corresponding document. When a change is detected in the "isOnline" field, it triggers a corresponding physical action, such as controlling the output level of a certain GPIO.
-
-### Remote Control Demo:
-
-<p align="center">
- <img src="readme/led1.gif" alt="GIF demo" width="410"/>
- <img src="readme/led2.gif" alt="GIF demo" width="410"/>
- <img src="readme/led3.gif" alt="GIF demo" width="410"/>
- <img src="readme/led4.gif" alt="GIF demo" width="410"/>
-</p>
-
-(You can go to the ".\WiseWatts\ESP32_Devices_Code" folder to find relevant implementation for ESP32 and Adruino Nano Wifi device. The "Bluetooth_device" file is used for letting the app scan and find the ESP32 board via bluetooth, the "WIFI_device" file is used for letting the app to connect the Arduino Nano Wifi board via phone Wi-Fi setting. Other files named end with different color leds are used for demonstrating the remote control of devices from the app 😀)
-
-
+=========================================================================================
 
 =========================================================================================
 
