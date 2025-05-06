@@ -13,17 +13,53 @@
 
 ======================================================================================================================================
 # 1. User Persona:
-![alt text](image-2.png)
+![alt text](readme/persona.png)
 
 ======================================================================================================================================
 # 2. Paper Prototyping:
-![alt text](058adf8ae3348e1f3df1b4a7559a704.png)
+
+![alt text](readme/paper_prototype.png)
+
+
 
 ======================================================================================================================================
 # 3. Screens:
-**Home Page**:
+**3.1.Home Page**: 
+The homepage screen of WiseWatts provides users with a one-stop overview for household energy management. The page features multiple key functions presented in a card-style layout, integrating map positioning, weather information, connected environment status, household appliance on/off status, and energy consumption overview to enable users to comprehensively monitor their home's energy status. Below are the specific functionalities:  
+
+**Account Balance Display:** Real-time retrieval and display of each user's account balance information stored dedicated Firestore Database, supporting subsequent balance top-up and energy bill payments.  
+
+**Current Location and Home Address Map:** Utilizes the Google Maps API and on-board GPS to detect the user’s current location alongside the set home address, enable app to remind users to turn off unnecessary household appliances when they are not at home.
+
+**Weather Information Card:** Integrates the Google Weather API to present current and forecasted weather conditions, aiding users in optimizing energy usage strategies based on external climate factors.  
+
+**Sensor Average Value Card:** Reads the latest 60 environmental data value (lighting, temperature, humidity, and air pressure) collected by Environment Page, calculates their average values and display, aiding users in optimizing energy usage strategies based on internal connected environment factors.  
+
+**Device Overview Card:** Displays the total number of added devices and the count of online devices, allowing navigation to the device management page for further operations.  
+
+**Energy Overview Card:** Retrieves briefly information (stored in Firestore Database) of weekly/monthly/annually household electricity consumption and money cost, enabling users to quickly understand their energy usage while providing access to the Energy Hub Page for detailed analysis.   
+
+**Pay Energy Bill Card:** Provide users with a convenient entry point for energy bill payment, while also supporting users' independent selection of payment cycles.
+
+The overall design prioritizes data accessibility and information integration. All content is automatically loaded upon program startup and remains synchronized in real-time with Firebase, delivering an intuitive, clear, and user-friendly experience.  
+<p align="center">
+  <img src="readme/home.gif" alt="GIF demo" width="300"/>
+  <img src="readme/home1.png" alt="Static preview" width="300"/>
+  <img src="readme/home2.png" alt="Static preview" width="300"/>
+  <img src="readme/home3.png" alt="Static preview" width="300"/>
+</p>
 
 ======================================================================================================================================
 
+# Contact Details:
+If you have any question❓or suggestion❗for WiseWatts⚡, feel free to contact me via email ucabzd3@ucl.ac.uk ! 😀
 
-Having Contact Details is also good as it shows people how to get in contact with you if they'd like to contribute to the app. 
+My working time is: 10:00 a.m. to 5:00 p.m. Monday - Friday.
+
+Looking Forward to receving your feedback ！ 🧐
+
+Ziyang Deng
+
+MSc Systems Engineering for the Internet of Things
+
+Department of Computer Science, UCL
