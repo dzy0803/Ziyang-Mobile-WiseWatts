@@ -274,7 +274,7 @@ All device data is in real-time connection with Firebase Firestore, ensuring tha
 <img src="readme/dev3.gif" alt="Static preview" width="200"/>
 <img src="readme/dev4.gif" alt="Static preview" width="200"/>
   <img src="readme/dev5.gif" alt="GIF demo" width="200"/>
-    <img src="readme/dev8.jpg" alt="Static preview" height="400"/>
+    <img src="readme/dev8.jpg" alt="Static preview" height="300"/>
   <img src="readme/dev6.gif" alt="GIF demo" width="200"/>
     <img src="readme/dev7.gif" alt="GIF demo" width="200"/>
 </p>
@@ -302,10 +302,10 @@ The ESP32 connects to Firebase via Wi-Fi and listens to its corresponding docume
 ### Remote Control Demo:
 
 <p align="center">
- <img src="readme/led1.gif" alt="GIF demo" width="450"/>
- <img src="readme/led2.gif" alt="GIF demo" width="450"/>
- <img src="readme/led3.gif" alt="GIF demo" width="450"/>
- <img src="readme/led4.gif" alt="GIF demo" width="450"/>
+ <img src="readme/led1.gif" alt="GIF demo" width="410"/>
+ <img src="readme/led2.gif" alt="GIF demo" width="410"/>
+ <img src="readme/led3.gif" alt="GIF demo" width="410"/>
+ <img src="readme/led4.gif" alt="GIF demo" width="410"/>
 </p>
 
 (You can go to the ".\WiseWatts\ESP32_Devices_Code" folder to find relevant implementation for ESP32 and Adruino Nano Wifi device. The "Bluetooth_device" file is used for letting the app scan and find the ESP32 board via bluetooth, the "WIFI_device" file is used for letting the app to connect the Arduino Nano Wifi board via phone Wi-Fi setting. Other files named end with different color leds are used for demonstrating the remote control of devices from the app 😀)
