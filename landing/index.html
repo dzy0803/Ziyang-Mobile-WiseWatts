@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WiseWatts - Smarter Energy</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap">
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      background-color: #fff;
+      color: #333;
+    }
+    header {
+      background: linear-gradient(90deg, #FFA726, #FB8C00);
+      padding: 60px 20px;
+      color: white;
+      text-align: center;
+    }
+    header h1 {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+    header p {
+      font-size: 20px;
+      margin-bottom: 24px;
+    }
+    header a {
+      display: inline-block;
+      background: white;
+      color: #FB8C00;
+      padding: 12px 24px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: bold;
+    }
+    section {
+      padding: 60px 20px;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+    .features {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 40px;
+    }
+    .feature {
+      flex: 1 1 45%;
+    }
+    .feature h3 {
+      color: #FB8C00;
+      margin-bottom: 10px;
+    }
+    .screenshots img {
+      max-width: 100%;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    footer {
+      text-align: center;
+      padding: 40px;
+      background-color: #f6f6f6;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>WiseWatts</h1>
+    <p>Smarter energy, greener living. Monitor, control, and optimize your home.</p>
+    <a href="https://github.com/dzy0803/Ziyang-Mobile-WiseWatts" target="_blank">View Source on GitHub</a>
+  </header>
+
+  <section>
+    <h2>Key Features</h2>
+    <div class="features">
+      <div class="feature">
+        <h3>📊 Real-Time Energy Monitoring</h3>
+        <p>Visualize household energy usage, with alerts when usage exceeds budget.</p>
+      </div>
+      <div class="feature">
+        <h3>📱 Smart Device Control</h3>
+        <p>Turn devices on/off remotely via Wi-Fi or Bluetooth (ESP32-compatible).</p>
+      </div>
+      <div class="feature">
+        <h3>🌡️ Environmental Dashboard</h3>
+        <p>Track light, temperature, humidity, and pressure from connected sensors.</p>
+      </div>
+      <div class="feature">
+        <h3>🔌 Budget & Forecast</h3>
+        <p>Set energy budgets and simulate costs based on real electricity pricing.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="screenshots">
+    <h2>App Preview</h2>
+    <p><em>(Replace these with real screenshots)</em></p>
+    <img src="https://via.placeholder.com/800x450.png?text=Home+Dashboard" alt="Home Dashboard" />
+    <br /><br />
+    <img src="https://via.placeholder.com/800x450.png?text=Energy+Hub+Analytics" alt="Energy Hub Analytics" />
+  </section>
+
+  <section>
+    <h2>Technologies Used</h2>
+    <ul>
+      <li>Flutter (Dart)</li>
+      <li>Firebase Auth + Firestore + Realtime Database</li>
+      <li>BLE (FlutterBlue) & Wi-Fi (ESP32)</li>
+      <li>OpenWeather API, Octopus Energy API</li>
+    </ul>
+  </section>
+
+  <footer>
+    &copy; 2025 WiseWatts. Built by Ziyang Deng. All rights reserved.
+  </footer>
+</body>
+</html>
