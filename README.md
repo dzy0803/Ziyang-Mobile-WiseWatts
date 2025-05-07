@@ -8,6 +8,8 @@
 =========================================================================================
 Link to this Repository: https://github.com/dzy0803/Ziyang-Mobile-WiseWatts
 
+Landing page: https://dzy0803.github.io/wisewattslandingpage/
+
 # Project Description: 
 **WiseWatts** is a Flutter-based mobile application platform📱designed for smart house appliance🏠and energy management⚡. It combines multiple functionalities, including home environment monitoring, remote control of appliances, power budgeting, and visualised energy data analysis, with the goal of assisting users in achieving more efficient, eco-friendly, and personalized energy consumption strategies. By leveraging Firebase cloud services, IoT devices (e.g., ESP32), and real-time chart rendering, WiseWatts delivers an intelligent user experience characterized by high operability, an intuitive interface, and prompt feedback.
 
