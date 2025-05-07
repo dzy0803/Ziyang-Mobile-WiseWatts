@@ -426,3 +426,5 @@ Module Director : Prof. Steven Gray (steven.gray@ucl.ac.uk)
 Module Programme: MSc Connected Environment
 
 Module Department: Bartlett Centre for Advanced Spatial Analysis (CASA), UCL
+
+=========================================================================================
