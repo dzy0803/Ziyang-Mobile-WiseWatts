@@ -15,7 +15,7 @@ Link to this Repository: https://github.com/dzy0803/Ziyang-Mobile-WiseWatts
 
 =========================================================================================
 # 1. User Persona:
-To better align with the actual usage scenarios and needs of users, we have created a concrete user persona - Walter White😎(from TV play series《Breaking Bad》). He represents ordinary family users who are under pressure from energy expenses, concerned about family financial planning, and hope to optimize their living costs through intelligent means. By depicting his background, motivations, behavioral characteristics, and pain points, we can continuously align with the concerns of real users during the product design process and ensure that the solutions are both practical and emotionally resonant.
+To better align with the actual usage scenarios and needs of users, we have created a concrete user persona - Walter White😎(from TV play series《Breaking Bad》). He represents family users who are under pressure from energy expenses, concerned about family financial planning, and hope to optimize their living costs through intelligent means. By depicting his background, motivations, behavioral characteristics, and pain points, we can continuously align with the concerns of real users during the product design process and ensure that the solutions are both practical and emotionally resonant.
 
 ![alt text](readme/persona.png)
 
