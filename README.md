@@ -329,6 +329,8 @@ The WiseWatts mobile application integrates a range of external services to enab
 - OpenWeather API: Fetches current weather conditions (temperature, humidity, wind speed) and 6-hour forecasts based on user location.
 - Octopus Energy API: Retrieves current electricity pricing (in £/kWh) in the UK to estimate cost and inform budget tracking.
 - Google Maps & Geolocation Services: 1. geolocator: obtains the user's real-time GPS location. 2. geocoding: converts between coordinates and human-readable addresses. 3. google_maps_flutter: displays maps with markers for current and home locations.
+- UK Postcode API (api.postcodes.io)：Converts user-entered postcodes into readable address formats during sign-up.
+- HTTP API (http package)：Sends POST requests to ESP32 devices over Wi-Fi for remote registration and naming.
 
 4. 📲 Device & System-Level Interfaces:
 - flutter_blue_plus: Enables Bluetooth (BLE) scanning, pairing, and device registration for ESP32-based IoT devices.
