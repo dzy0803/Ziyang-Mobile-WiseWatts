@@ -6,6 +6,8 @@
 
 
 =========================================================================================
+Link to this Repository: https://github.com/dzy0803/Ziyang-Mobile-WiseWatts
+
 # Project Description: 
 **WiseWatts** is a Flutter-based mobile application platform📱designed for smart house appliance🏠and energy management⚡. It combines multiple functionalities, including home environment monitoring, remote control of appliances, power budgeting, and visualised energy data analysis, with the goal of assisting users in achieving more efficient, eco-friendly, and personalized energy consumption strategies. By leveraging Firebase cloud services, IoT devices (e.g., ESP32), and real-time chart rendering, WiseWatts delivers an intelligent user experience characterized by high operability, an intuitive interface, and prompt feedback.
 
@@ -224,32 +226,180 @@ The ESP32 connects to Firebase via Wi-Fi and listens to its corresponding docume
 ## **3.4. ⚡Energy Hub Page**: 
 Energy Hub is the energy control and data analysis center in the WiseWatts application, dedicated to helping users track electricity usage trends, set budget caps, and analyze the energy consumption of devices, thereby enabling more energy-efficient and controllable household electricity strategies.
 
-### Main Functions:
-### 1. 
+### Key Functional Highlights:
+
+### 1. 📈 Total Energy Flow:
+Display the electricity usage trend over the past 7 days / 4 weeks / 12 months in a line chart. Support switching to view by week, month, or year to help users identify energy consumption patterns.
+
+### 2. 🧮 Budget Control:
+Users can set budget amounts (£) for different time periods and adjust them via a slider.
+
+### 3. 💰 Electricity Pricing:
+Automatically fetch the current electricity price in the UK via Octopus Energy API. Estimate the cost of the current period based on the total electricity consumption and the electricity price.
+
+### 4. 🚨 Over-expenditure Alert:
+If the current consumption exceeds the budget, the system will automatically display a red prompt "Exceeded Budget"; if it is within the budget, a green prompt "Good Performance" will be shown.
+
+### 5. 🥇 Top 3 High-Energy Consumption Equipment Ranking:
+Display the top three most power-consuming devices within the current period through bar charts and medal-style cards. This helps users identify "power guzzlers" and optimize their device usage strategies.
+
+### 6. 📊 Details of Electricity Consumption by Each Device:
+Each device has an expandable card that shows a bar chart of its electricity consumption in the current period. It supports viewing daily/weekly/monthly electricity consumption trends by device.
+
+### 7. ☁️ Firebase Integration:
+Real-time synchronization of the Energy Consumption and Price Cost to Firebase.
 
 
 
-### 2.
+The Energy Hub page is not only a data display platform but also a decision support system for household energy management. It helps users understand electricity consumption trends and hidden high-energy-consuming devices; formulate reasonable budgets and monitor their implementation; and achieve energy conservation, emission reduction and economic optimization without compromising the quality of life.
+
+<p align="center">
+ <img src="readme/hub1.gif" alt="GIF demo" width="400"/>
+ <img src="readme/hub2.gif" alt="GIF demo" width="400"/>
+ <img src="readme/hub3.gif" alt="GIF demo" width="400"/>
+ <img src="readme/hub4.gif" alt="GIF demo" width="400"/>
+</p>
+
+### Implementation Methods:
+The energy consumption data currently displayed on the Energy Hub page, such as total electricity usage, electricity usage trend charts, device rankings, and total costs, are automatically generated based on simulation algorithms rather than being sourced from real power sensors or smart plugs. This is because the current project has not yet been connected to real electricity meters or smart plugs (such as Shelly Plug, Sonoff) and convenient APIs, and thus cannot obtain actual power data. To ensure the normal operation of front-end development, interaction design, chart logic, and other functions, a controllable simulated data source is adopted.
+
+The subsequent version will be connected to devices based on ESP32 + current sensors (such as SCT-013, PZEM-004T) to achieve the collection of actual power consumption of each household appliance.
+
+In the Energy Hub page of the WiseWatts app, Firebase is utilized for data storage, synchronization, and status tracking, mainly focusing on the recording and updating of information such as user budgets, electricity consumption, and electricity costs. The following is an explanation of how Firebase is used in specific functions:
+
+1. Each time a user switches the time range (week/month/year) or adjusts the budget, the system will call the _uploadEnergyStats() method to upload the current budget, energy consumption and estimated cost to Firestore：
+```dart
+await docRef.set({
+  'budget': budget,
+  'consumption': consumption,
+  'cost': cost,
+  'timestamp': FieldValue.serverTimestamp(),
+}, SetOptions(merge: true));
+```
+
+2. When users return to the Home Page or re-enter the Energy Hub, the system will listen to Firebase Firestore to obtain and display the saved electricity consumption statistics. This information is indirectly supported for state refresh through the "StreamBuilder" mechanism.
+
+3. On the home page, users can pay for the energy cost of a certain period, and this operation will also update the "paid" field of the corresponding document in Firebase.
+```dart
+await FirebaseFirestore.instance
+  .collection('users')
+  .doc(user.uid)
+  .collection('energyStats')
+  .doc(_selectedRange)
+  .set({'paid': true}, SetOptions(merge: true));
+```
+In this way, Energy Hub and Home Page will render the "Paid / Unpaid" status based on this field.
+
+<p align="center">
+    <img src="readme/home6.gif" alt="GIF demo" width="400"/>
+</p>
 
 
-
-### 3. 
-
-
-
-### 4. 
-
-
-
-### Application scenarios:
-
-
-
-## Implementation Methods:
-
-
+(You can find the simulated data generation model file called "energy_data_generator.dart" in the ".\WiseWatts\lib\screens" folder, pls don't forget to import this file in "energy_hub_page.dart", otherwise there will be no data displayed in the energy hub screen)
 
 =========================================================================================
+
+# 4. App Use Demonstration:
+Please find the following video for understanding how to use the app:
+
+=========================================================================================
+
+# 5. Furthermore:
+
+## External Technologies Used (beyond flutter widgets):
+The WiseWatts mobile application integrates a range of external services to enable real-time environmental sensing, remote device control, cloud-based data management, and dynamic data visualization. These services fall into four major categories: cloud services, hardware sensors, APIs, and system-level device interfaces:
+
+1. ☁️ Firebase (Google Cloud Platform):
+- Firebase Authentication: Handles user login and authentication (via email, Google Sign-In, etc.)
+- Cloud Firestore: Stores all key data: user profiles, device lists, device status (isOnline), energy usage statistics, and budgets. Also enables real-time syncing between app and ESP32 for remote control.
+- Firebase Realtime Database: Receives temperature and humidity data sent by an external DHT11 sensor connected to ESP32. Data is displayed live in the Environment Page.
+
+2. 📡 On-Device & External Sensors & Boards:
+- Google Pixel 6a Light Sensor
+- External DHT11 Sensor (via ESP32)
+- ESP32 with LEDs (Simulated Devices)
+
+3. 🌍 External APIs:
+- OpenWeather API: Fetches current weather conditions (temperature, humidity, wind speed) and 6-hour forecasts based on user location.
+- Octopus Energy API: Retrieves current electricity pricing (in £/kWh) in the UK to estimate cost and inform budget tracking.
+- Google Maps & Geolocation Services: 1. geolocator: obtains the user's real-time GPS location. 2. geocoding: converts between coordinates and human-readable addresses. 3. google_maps_flutter: displays maps with markers for current and home locations.
+
+4. 📲 Device & System-Level Interfaces:
+- flutter_blue_plus: Enables Bluetooth (BLE) scanning, pairing, and device registration for ESP32-based IoT devices.
+- permission_handler: Manages runtime permissions for location, Bluetooth, and sensors.
+- app_settings / android_intent_plus: Opens system Wi-Fi settings to help users connect to ESP32 in Wi-Fi mode.
+
+
+---
+
+## Dependecies:
+```yaml
+dependencies:
+  ################ firebase dependency
+  cloud_firestore: 5.6.7
+  firebase_auth: ^5.3.4
+  google_sign_in: ^6.2.2
+  firebase_core: ^3.9.0
+  firebase_database: 11.3.5 
+  ########################
+  flutter_launcher_icons: ^0.13.1
+  environment_sensors: ^0.3.0
+  app_settings: ^5.1.1 
+  android_intent_plus: ^4.0.2
+  flutter_blue_plus: ^1.27.3
+  permission_handler: ^11.0.0
+  intl: ^0.18.1  
+  http: 1.3.0
+  google_maps_flutter: ^2.5.0
+  geolocator: ^11.0.0
+  geocoding: ^2.1.1 # use phone's gps to get the user's real time location
+  google_fonts: ^6.1.0
+  provider: ^6.1.1
+  fl_chart: ^0.66.0   # used for visulizing data
+  lottie: ^2.7.0   # used for animation 
+  uuid: ^3.0.7     # used for generating unique id for each device
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+```
+
+
+---
+
+## Development Environment:
+```Flutter 3.27.1 • channel stable • https://github.com/flutter/flutter.git
+Framework • revision 17025dd882 (5 months ago) • 2024-12-17 03:23:09 +0900
+Engine • revision cb4b5fff73
+Tools • Dart 3.6.0 • DevTools 2.40.2
+```
+
+--- 
+
+## Installation:
+Pre-requirements:
+- Install Flutter and Dart
+
+- Install Android Studio to launch the emulator
+  
+- Have a physical Android phone (the project uses Google Pixel 6a)
+
+- A plug to connect the phone with your laptop/PC (if you using physical phone)
+
+
+```
+$ copy and paste this to your web browser: https://github.com/dzy0803/Ziyang-Mobile-WiseWatts 
+$ download the "Ziyang-Mobile-WiseWatts" project (you can choose anyway, git clone or download zip file)
+$ Go inside to the root of this folder
+$ Open your Android phone emulator or connect your physical device to your machine
+$ open a terminal and type "flutter pub get"
+$ lastly type "flutter run"
+```
+
+### **Hint**:
+Please don't forget to use these four configuration files (replace yours with these) if you want to run the app: ".\WiseWatts\android\build.gradle", "\WiseWatts\android\setting.gradle", ".\WiseWatts\android\app\build.gradle" and ".\WiseWatts\android\app\src\main\AndroidManifest.xml" 😀
 
 =========================================================================================
 
@@ -266,3 +416,13 @@ Ziyang Deng
 MSc Systems Engineering for the Internet of Things
 
 Department of Computer Science, UCL
+
+=========================================================================================
+
+Coursework Submission for Module "CASA0015: Mobile Systems & Interactions 24/25" 
+
+Module Director : Prof. Steven Gray (steven.gray@ucl.ac.uk)
+
+Module Programme: MSc Connected Environment
+
+Module Department: Bartlett Centre for Advanced Spatial Analysis (CASA), UCL
