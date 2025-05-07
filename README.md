@@ -409,6 +409,20 @@ $ lastly type "flutter run"
 ### **Hint**:
 Please don't forget to use these four configuration files (replace yours with these) if you want to run the app: ".\WiseWatts\android\build.gradle", "\WiseWatts\android\setting.gradle", ".\WiseWatts\android\app\build.gradle" and ".\WiseWatts\android\app\src\main\AndroidManifest.xml" 😀
 
+---
+
+## Future Improvement:
+- Real Energy Integration： Replace simulated energy usage with actual real-time data collected from smart plugs or smart meters via MQTT or RESTful APIs.
+
+- Push Notifications & Alerts：Add smart alerts to notify users when their energy usage approaches or exceeds their budget, or when a device goes offline unexpectedly.
+  
+- Enhanced Data Analytics：Introduce machine learning to analyze usage patterns, recommend energy-saving tips, and forecast monthly consumption.
+  
+- Integration with Large-Language-Model: Integrating an LLM (e.g., ChatGPT or open-source alternatives) would enable a more intelligent and conversational energy assistant experience in WiseWatts. Possible enhancements include: Context-Aware Feedback, Smart Energy Assistant (Chatbot Interface), Conversational Device Management, etc.
+  
+- Dark Mode & Accessibility: Improve UI with full accessibility support (e.g., screen readers) and add a toggle for dark mode to suit different preferences.
+
+
 =========================================================================================
 
 # Contact Details:
