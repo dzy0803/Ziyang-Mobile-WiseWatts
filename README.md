@@ -301,8 +301,12 @@ In this way, Energy Hub and Home Page will render the "Paid / Unpaid" status bas
 
 =========================================================================================
 
-# 4. App Use Demonstration:
-Please find the following video for understanding how to use the app:
+# 4. App Demo Video:
+Please find the following video for understanding how to use the app (or use the link https://youtu.be/hSBnEduZ_MU?si=pSQNG-FB2RXKaC0S): 
+
+[![Watch the demo](https://img.youtube.com/vi/hSBnEduZ_MU/hqdefault.jpg)](https://www.youtube.com/watch?v=hSBnEduZ_MU)
+
+
 
 =========================================================================================
 
