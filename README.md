@@ -441,10 +441,4 @@ Department of Computer Science, UCL
 
 =========================================================================================
 
-Coursework Submission for Module "CASA0015: Mobile Systems & Interactions 24/25" 
 
-Module Director : Prof. Steven Gray (steven.gray@ucl.ac.uk)
-
-Module Programme: MSc Connected Environment
-
-Module Department: Bartlett Centre for Advanced Spatial Analysis (CASA), UCL
