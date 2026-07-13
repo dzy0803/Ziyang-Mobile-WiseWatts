@@ -426,7 +426,7 @@ Please don't forget to use these four configuration files (replace yours with th
 =========================================================================================
 
 # Contact Details:
-If you have any question❓or suggestion❗for WiseWatts⚡, feel free to contact me via email ucabzd3@ucl.ac.uk ! 😀
+If you have any question❓or suggestion❗for WiseWatts⚡, feel free to contact me via email ziyang.d@outlook.com ! 😀
 
 My working time is: 10:00 a.m. to 5:00 p.m. Monday - Friday.
 
@@ -434,11 +434,6 @@ Looking Forward to receving your feedback and Good Luck ！ 🧐
 
 ----
 Ziyang Deng
-
-MSc Systems Engineering for the Internet of Things
-
-Department of Computer Science, UCL
-
 =========================================================================================
 
 
